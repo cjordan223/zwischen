@@ -5,8 +5,20 @@
 ai:
   enabled: true            # Enable AI for manual 'zwischen scan'
   pre_push_enabled: false  # Disable AI in pre-push hooks (performance)
-  provider: claude  # uses key from ~/.zwischen/credentials
-  # api_key: null   # Leave null to use ~/.zwischen/credentials or ANTHROPIC_API_KEY env var
+  provider: claude         # Options: claude, ollama, openai
+  
+  # Provider-specific settings
+  ollama:
+    model: llama3
+    url: http://localhost:11434
+  
+  openai:
+    model: gpt-4
+  
+  claude:
+    model: claude-3-5-sonnet-20241022
+
+  # api_key: null   # Leave null to use ~/.zwischen/credentials or env vars (ANTHROPIC_API_KEY, OPENAI_API_KEY)
 
 # What blocks a push
 blocking:

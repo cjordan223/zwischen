@@ -1,14 +1,26 @@
 # frozen_string_literal: true
 
-require_relative "claude_client"
+require_relative "anthropic_client"
+require_relative "ollama_client"
+require_relative "openai_client"
 require_relative "../finding/finding"
 
 module Zwischen
   module AI
     class Analyzer
-      def initialize(api_key: nil, project_context: {})
-        @client = ClaudeClient.new(api_key: api_key)
+      def initialize(provider: "claude", api_key: nil, config: {}, project_context: {})
         @project_context = project_context
+        
+        client_class = case provider.to_s.downcase
+                       when "claude", "anthropic" then AnthropicClient
+                       when "ollama" then OllamaClient
+                       when "openai" then OpenAIClient
+                       else
+                         # Fallback or error
+                         AnthropicClient
+                       end
+
+        @client = client_class.new(api_key: api_key, config: config)
       end
 
       def analyze(findings)

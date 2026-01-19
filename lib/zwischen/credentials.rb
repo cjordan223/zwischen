@@ -5,6 +5,16 @@ require "fileutils"
 
 module Zwischen
   class Credentials
+    PROVIDER_ENV_VARS = {
+      "claude" => "ANTHROPIC_API_KEY",
+      "openai" => "OPENAI_API_KEY"
+    }.freeze
+
+    PROVIDER_KEYS = {
+      "claude" => "anthropic_api_key",
+      "openai" => "openai_api_key"
+    }.freeze
+
     def self.credentials_path
       File.join(Dir.home, ".zwischen", "credentials")
     end
@@ -23,11 +33,17 @@ module Zwischen
       {}
     end
 
-    def self.save(api_key: nil)
+    def self.save(provider: "claude", api_key:)
       ensure_directory
 
       credentials = load
-      credentials["anthropic_api_key"] = api_key if api_key
+      
+      key_name = PROVIDER_KEYS[provider]
+      if key_name
+        credentials[key_name] = api_key
+      else
+        warn "Unknown provider: #{provider}"
+      end
 
       File.write(credentials_path, credentials.to_yaml)
       File.chmod(0o600, credentials_path)
@@ -36,14 +52,16 @@ module Zwischen
       raise
     end
 
-    def self.get_api_key
-      # Priority: ENV var > credentials file > config
-      return ENV["ANTHROPIC_API_KEY"] if ENV["ANTHROPIC_API_KEY"]
+    def self.get_api_key(provider = "claude")
+      # Priority: ENV var > credentials file
+      env_var = PROVIDER_ENV_VARS[provider]
+      return ENV[env_var] if env_var && ENV[env_var]
+
+      key_name = PROVIDER_KEYS[provider]
+      return nil unless key_name
 
       credentials = load
-      return credentials["anthropic_api_key"] if credentials["anthropic_api_key"]
-
-      nil
+      credentials[key_name]
     end
   end
 end

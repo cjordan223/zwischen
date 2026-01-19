@@ -109,23 +109,35 @@ module Zwischen
       # Aggregate findings
       aggregated = Finding::Aggregator.aggregate(findings)
 
+      # Determine AI provider
+      provider = if options[:ai] && !options[:ai].empty? && options[:ai] != "true"
+                   options[:ai]
+                 else
+                   config.ai_provider
+                 end
+
       # AI analysis if enabled
       ai_enabled = if pre_push
         # In pre-push mode, use config to determine AI
-        config.ai_pre_push_enabled? && Credentials.get_api_key
+        config.ai_pre_push_enabled?
       else
         # Manual scan: use flag or config
-        (!options[:ai].nil? && !options[:ai].empty?) || (config.ai_enabled? && Credentials.get_api_key)
+        !options[:ai].nil? || config.ai_enabled?
       end
 
       if ai_enabled
         begin
           unless pre_push
-            puts "🤖 Analyzing findings with AI...\n"
+            puts "🤖 Analyzing findings with AI (#{provider})...\n"
           end
-          api_key = options[:"api-key"] || Credentials.get_api_key
+          
+          api_key = options[:"api-key"] || config.ai_api_key(provider)
+          provider_config = config.ai_provider_config(provider)
+
           analyzer = AI::Analyzer.new(
+            provider: provider,
             api_key: api_key,
+            config: provider_config,
             project_context: project
           )
           enhanced_findings = analyzer.analyze(aggregated[:findings])

@@ -2,18 +2,17 @@
 
 require "faraday"
 require "json"
+require_relative "base_client"
 
 module Zwischen
   module AI
-    class Error < StandardError; end
-
-    class ClaudeClient
+    class AnthropicClient < BaseClient
       API_BASE_URL = "https://api.anthropic.com/v1"
       API_VERSION = "2023-06-01"
 
-      def initialize(api_key: nil)
-        @api_key = resolve_api_key(api_key)
-        raise Error, "Claude API key not found. Set ANTHROPIC_API_KEY env var or use --api-key flag" unless @api_key
+      def initialize(api_key: nil, config: {})
+        super
+        raise Error, "Claude API key not found." unless @api_key
 
         @client = Faraday.new(url: API_BASE_URL) do |conn|
           conn.request :json
@@ -22,7 +21,9 @@ module Zwischen
         end
       end
 
-      def analyze(prompt, model: "claude-3-5-sonnet-20241022")
+      def analyze(prompt)
+        model = @config["model"] || "claude-3-5-sonnet-20241022"
+
         response = @client.post("/messages") do |req|
           req.headers["x-api-key"] = @api_key
           req.headers["anthropic-version"] = API_VERSION
@@ -38,22 +39,19 @@ module Zwischen
           }
         end
 
+        body = response.body
+        body = JSON.parse(body) if body.is_a?(String)
+
         if response.success?
-          response.body.dig("content", 0, "text")
+          body.dig("content", 0, "text")
         else
-          error_message = response.body.dig("error", "message") || "Unknown error"
+          error_message = body.dig("error", "message") rescue body
           raise Error, "Claude API error: #{error_message}"
         end
       rescue Faraday::Error => e
         raise Error, "Network error: #{e.message}"
-      end
-
-      private
-
-      def resolve_api_key(provided_key)
-        return provided_key if provided_key && !provided_key.empty?
-
-        ENV["ANTHROPIC_API_KEY"] || ENV["ZWISCHEN_API_KEY"]
+      rescue JSON::ParserError => e
+        raise Error, "Invalid JSON response: #{e.message}"
       end
     end
   end

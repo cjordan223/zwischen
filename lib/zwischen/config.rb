@@ -10,7 +10,14 @@ module Zwischen
         "enabled" => true,
         "pre_push_enabled" => false,
         "provider" => "claude",
-        "api_key" => nil
+        "api_key" => nil,
+        "ollama" => {
+          "model" => "llama3",
+          "url" => "http://localhost:11434/api/chat"
+        },
+        "openai" => {
+          "model" => "gpt-4"
+        }
       },
       "blocking" => {
         "severity" => "high"  # high, critical, or none
@@ -85,16 +92,20 @@ module Zwischen
       @config.dig("ai", "pre_push_enabled") == true
     end
 
-    def ai_api_key
+    def ai_api_key(provider = ai_provider)
       # Check credentials first, then config
       begin
         require_relative "credentials"
-        api_key = Credentials.get_api_key
+        api_key = Credentials.get_api_key(provider)
         return api_key if api_key
       rescue LoadError, NameError
         # Credentials not available, fall through to config
       end
       @config.dig("ai", "api_key")
+    end
+
+    def ai_provider_config(provider = ai_provider)
+      @config.dig("ai", provider) || {}
     end
 
     def blocking_severity

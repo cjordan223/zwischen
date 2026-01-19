@@ -32,6 +32,20 @@ RSpec.describe Zwischen::Config do
     end
   end
 
+  describe "#ai_provider_config" do
+    it "returns config for specific provider" do
+      config = Zwischen::Config.new
+      ollama_config = config.ai_provider_config("ollama")
+      expect(ollama_config["model"]).to eq("llama3")
+      expect(ollama_config["url"]).to include("localhost")
+    end
+
+    it "returns empty hash for unknown provider" do
+      config = Zwischen::Config.new
+      expect(config.ai_provider_config("unknown")).to eq({})
+    end
+  end
+
   describe ".init" do
     it "creates config file" do
       result = Zwischen::Config.init(temp_dir)
