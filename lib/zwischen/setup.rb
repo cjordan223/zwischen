@@ -81,25 +81,25 @@ module Zwischen
     def check_tools
       installer = Installer.new
 
-      tools = {
-        "gitleaks" => "Secrets detection",
-        "semgrep" => "Static analysis"
-      }
-
-      missing = []
-
-      tools.each do |tool_name, _description|
-        installed = installer.check_tool(tool_name)
-
-        missing << tool_name unless installed
+      # Auto-install gitleaks if missing
+      unless installer.gitleaks_available?
+        @shell.say("  ↳ Installing gitleaks...", :yellow)
+        if installer.auto_install_gitleaks
+          @shell.say("  ✓ Installed gitleaks to ~/.zwischen/bin/", :green)
+        else
+          @shell.say("  ⚠️  Could not auto-install gitleaks", :yellow)
+          @shell.say("    → #{installer.preferred_command('gitleaks')}", :yellow)
+        end
+      else
+        @shell.say("  ✓ gitleaks available", :green)
       end
 
-      @shell.say("  ✓ Checking tools (gitleaks, semgrep)", :green)
-      return if missing.empty?
-
-      @shell.say("  ⚠️  Missing tools: #{missing.join(', ')}", :yellow)
-      missing.each do |tool_name|
-        @shell.say("    → #{installer.preferred_command(tool_name)}", :yellow)
+      # Check semgrep (optional, not auto-installed)
+      if installer.check_tool("semgrep")
+        @shell.say("  ✓ semgrep available", :green)
+      else
+        @shell.say("  ↳ semgrep not found (optional)", :yellow)
+        @shell.say("    → #{installer.preferred_command('semgrep')}", :yellow)
       end
     end
 

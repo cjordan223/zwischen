@@ -13,24 +13,40 @@ module Zwischen
 
       def build_command(project_root)
         [
-          "gitleaks", "detect",
+          executable_path, "detect",
           "--source", project_root,
-          "--format", "json",
+          "--report-format", "json",
+          "--report-path", "-",
           "--no-git"
         ]
       end
 
       def scan_files(files, project_root)
-        findings = []
-        commands = build_command_for_files(files, project_root)
+        return [] if files.empty?
 
-        commands.each do |command|
+        # Gitleaks doesn't have native multi-file support, so we scan each file individually
+        # This is acceptable for pre-push since we typically have only a few changed files
+        findings = []
+
+        files.each do |file|
+          file_path = File.join(project_root, file)
+          next unless File.exist?(file_path)
+
+          command = [
+            executable_path, "detect",
+            "--source", file_path,
+            "--report-format", "json",
+            "--report-path", "-",
+            "--no-git"
+          ]
+
           stdout, stderr, status = Open3.capture3(*command, chdir: project_root)
-          if status.success?
-            next if stdout.strip.empty?
-            findings.concat(parse_output(stdout))
-          else
-            warn "Warning: #{@name} scan failed: #{stderr}" unless stderr.empty?
+
+          # Gitleaks: exit 0 = clean, exit 1 = findings, exit 2+ = error
+          if status.exitstatus <= 1
+            findings.concat(parse_output(stdout)) unless stdout.strip.empty?
+          elsif status.exitstatus > 1
+            warn "Warning: #{@name} scan failed on #{file} (exit #{status.exitstatus}): #{stderr}" if ENV["DEBUG"]
           end
         end
 
@@ -72,9 +88,10 @@ module Zwischen
       def build_command_for_files(files, project_root)
         files.map do |file|
           [
-            "gitleaks", "detect",
+            executable_path, "detect",
             "--source", File.join(project_root, file),
-            "--format", "json",
+            "--report-format", "json",
+            "--report-path", "-",
             "--no-git"
           ]
         end

@@ -7,17 +7,20 @@ require_relative "../finding/finding"
 module Zwischen
   module Scanner
     class Semgrep < Base
-      def initialize(config: "auto")
+      # Use open ruleset that works without Semgrep login
+      DEFAULT_CONFIG = "p/security-audit"
+
+      def initialize(config: DEFAULT_CONFIG)
         super(name: "semgrep", command: "semgrep")
         @config = config
       end
 
       def build_command(project_root)
-        ["semgrep", "--json", "--config", @config, project_root]
+        [executable_path, "--json", "--config", @config, project_root]
       end
 
       def build_command_for_files(files, _project_root)
-        ["semgrep", "--json", "--config", @config, *files]
+        [executable_path, "--json", "--config", @config, *files]
       end
 
       def parse_output(output)

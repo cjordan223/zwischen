@@ -16,18 +16,21 @@ blocking:
 
 # Scanner Configuration
 scanners:
-  gitleaks: true
-  semgrep: true
+  gitleaks: true  # Auto-installed to ~/.zwischen/bin/ if missing
+  semgrep: true   # Optional, install with: pip install semgrep
   # Or use detailed format:
   # gitleaks:
   #   enabled: true
   # semgrep:
   #   enabled: true
-  #   config: auto  # Options: auto, or path to custom ruleset
+  #   config: p/security-audit  # Open ruleset, no login required
+  #   # Other options: p/secrets, p/owasp-top-ten, or path to custom ruleset
 
-# Ignored Paths
+# Ignored Paths (glob patterns)
 ignore:
-  - vendor/
-  - node_modules/
-  - test/fixtures/
-  - "*.test.js"
+  - "**/vendor/**"
+  - "**/node_modules/**"
+  - "**/.git/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/test/fixtures/**"

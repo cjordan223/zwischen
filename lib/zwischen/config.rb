@@ -17,7 +17,7 @@ module Zwischen
       },
       "scanners" => {
         "gitleaks" => { "enabled" => true },
-        "semgrep" => { "enabled" => true, "config" => "auto" }
+        "semgrep" => { "enabled" => true, "config" => "p/security-audit" }
       },
       "ignore" => [
         "**/node_modules/**",
@@ -117,11 +117,11 @@ module Zwischen
 
     def semgrep_config
       semgrep_config = @config.dig("scanners", "semgrep")
-      # Handle both formats: "semgrep: true" (boolean) and "semgrep: { enabled: true, config: 'auto' }" (hash)
+      # Handle both formats: "semgrep: true" (boolean) and "semgrep: { enabled: true, config: '...' }" (hash)
       if semgrep_config.is_a?(Hash)
-        semgrep_config["config"] || "auto"
+        semgrep_config["config"] || "p/security-audit"
       else
-        "auto"
+        "p/security-audit"
       end
     end
 

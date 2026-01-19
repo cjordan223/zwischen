@@ -94,7 +94,10 @@ module Zwischen
       findings = orchestrator.scan(project[:root], only: options[:only], pre_push: pre_push, files: changed_files)
 
       # Filter findings to changed files in pre-push mode
-      if pre_push
+      # Note: This is a safety net. Scanners receive the file list and should only scan those,
+      # but some scanners (like gitleaks) may return paths in different formats. This ensures
+      # we only report findings for files the developer actually changed.
+      if pre_push && changed_files
         findings = GitDiff.filter_findings(findings: findings, changed_files: changed_files)
       end
 
