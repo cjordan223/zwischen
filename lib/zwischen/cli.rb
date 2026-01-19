@@ -38,12 +38,22 @@ module Zwischen
       all_installed = true
 
       tools.each do |tool_name, description|
-        installed = installer.check_tool(tool_name)
-        version = installer.get_version(tool_name) if installed
+        # Check both ~/.zwischen/bin/ and system PATH
+        local_path = File.join(File.expand_path("~/.zwischen/bin"), tool_name)
+        installed = File.executable?(local_path) || installer.check_tool(tool_name)
 
         if installed
+          # Get version from the correct path
+          executable = File.executable?(local_path) ? local_path : tool_name
+          version = begin
+            `#{executable} --version 2>/dev/null`.strip.split("\n").first
+          rescue
+            nil
+          end
+
           puts "✓ #{tool_name}".colorize(:green) + " - #{description}"
-          puts "  Version: #{version}" if version
+          puts "  Version: #{version}" if version && !version.empty?
+          puts "  Location: #{executable}" if File.executable?(local_path)
         else
           all_installed = false
           puts "✗ #{tool_name}".colorize(:red) + " - #{description} - NOT FOUND"
