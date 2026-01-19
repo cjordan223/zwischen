@@ -1,116 +1,92 @@
 # Zwischen
 
-AI-augmented security scanning CLI for vibe coders. Orchestrates Gitleaks and Semgrep scanners, aggregates findings, and uses AI to prioritize and explain security issues.
+AI-augmented security scanning for vibe coders. Zero-config secrets detection and vulnerability scanning with optional AI analysis.
 
 ## Installation
 
-### From RubyGems (when published)
+Choose your preferred package manager:
+
+### npm (for Node.js/React/Next.js developers)
+
+```bash
+npm install -g zwischen
+```
+
+### pip (for Python developers)
+
+```bash
+pip install zwischen
+```
+
+### gem (for Ruby developers)
 
 ```bash
 gem install zwischen
 ```
 
-### Local Development
-
-For local development and testing:
-
-```bash
-# Clone the repository
-git clone https://github.com/zwischen/zwischen.git
-cd zwischen
-
-# Install system dependencies (required for native gem compilation)
-# On Ubuntu/Debian:
-sudo apt-get install ruby3.3-dev build-essential
-
-# Install bundler if not already installed
-gem install bundler
-
-# Install dependencies
-bundle install
-
-# Build and install the gem locally (recommended for testing)
-gem build zwischen.gemspec
-gem install --user-install ./zwischen-*.gem
-
-# Or use the helper script:
-./scripts/test_as_gem.sh
-
-# Or use bundler to run directly without installing (development only)
-bundle exec bin/zwischen --help
-
-# Run tests
-bundle exec rspec
-
-# Run a specific test file
-bundle exec rspec spec/zwischen/project_detector_spec.rb
-
-# Test as installed gem (see TESTING.md for full guide)
-# After installing, test in a separate directory:
-cd ~/your-test-project
-zwischen init
-```
-
-**Note:** If `bundle` command is not found, add the gem bin directory to your PATH:
-```bash
-export PATH="$HOME/.local/share/gem/ruby/3.3.0/bin:$PATH"
-```
-Add this line to your `~/.bashrc` or `~/.zshrc` to make it permanent.
-
 ## Quick Start
 
 ```bash
-# Check if required tools are installed
-zwischen doctor
-
-# Initialize configuration
+# Initialize in your project (auto-installs gitleaks)
 zwischen init
 
 # Scan your project
-zwischen scan --ai claude
+zwischen scan
+
+# Scan with AI analysis (local Ollama)
+zwischen scan --ai ollama
+
+# Scan with OpenAI
+zwischen scan --ai openai
 ```
 
 ## Features
 
-- **Unified Security Scanning**: Wraps Gitleaks (secrets detection) and Semgrep (static analysis)
-- **AI-Powered Analysis**: Uses Claude API to prioritize findings, filter false positives, and suggest fixes
-- **Language Agnostic**: Works with Node.js, Python, Ruby, Go, Java, Rust, and more
-- **Zero Configuration**: Auto-detects project type and adjusts accordingly
+- **Zero Configuration**: Auto-installs gitleaks, works out of the box
+- **Multi-Language**: Works with Node.js, Python, Ruby, Go, Java, Rust, and more
+- **AI-Powered Analysis**: Optional AI to prioritize findings and suggest fixes
+- **Multiple AI Providers**: Ollama (local), OpenAI, Anthropic
+- **Git Hooks**: Automatically scans before each push
 
-## Requirements
+## AI Providers
 
-- Ruby 3.3+
-- Gitleaks (for secrets detection)
-- Semgrep (for static analysis)
-
-Install missing tools with:
-```bash
-zwischen doctor
-```
+| Provider | Setup |
+|----------|-------|
+| Ollama (local, free) | Install [Ollama](https://ollama.ai), run `ollama pull llama3` |
+| OpenAI | Set `OPENAI_API_KEY` environment variable |
+| Anthropic | Set `ANTHROPIC_API_KEY` environment variable |
 
 ## Configuration
 
-Set your Anthropic API key:
-```bash
-export ANTHROPIC_API_KEY=your_key_here
-```
+Create `.zwischen.yml` in your project root:
 
-Or use the `--api-key` flag:
-```bash
-zwischen scan --ai claude --api-key your_key_here
+```yaml
+ai:
+  provider: ollama    # ollama, openai, or anthropic
+  model: llama3       # model name for your provider
+
+blocking:
+  severity: high      # critical, high, or none
+
+scanners:
+  gitleaks: true      # auto-installed
+  semgrep: true       # optional: pip install semgrep
 ```
 
 ## Usage
 
 ```bash
-# Scan with AI analysis
-zwischen scan --ai claude
+# Scan with local AI (Ollama)
+zwischen scan --ai ollama
 
-# Scan specific scanner types only
-zwischen scan --only secrets,sast
+# Scan with OpenAI
+zwischen scan --ai openai --api-key sk-...
 
 # Output as JSON
 zwischen scan --format json
+
+# Check tool status
+zwischen doctor
 ```
 
 ## License

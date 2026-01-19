@@ -1,0 +1,39 @@
+{
+  "name": "zwischen",
+  "version": "0.1.0",
+  "description": "AI-augmented security scanning for vibe coders. Zero-config secrets detection and vulnerability scanning.",
+  "main": "src/index.js",
+  "bin": {
+    "zwischen": "bin/zwischen.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "security",
+    "scanner",
+    "secrets",
+    "gitleaks",
+    "semgrep",
+    "ai",
+    "vulnerability",
+    "sast",
+    "devsecops"
+  ],
+  "author": "Conner Jordan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cjordan223/Zwischen.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "js-yaml": "^4.1.0",
+    "tar": "^7.0.0"
+  },
+  "devDependencies": {}
+}
