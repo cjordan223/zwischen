@@ -6,6 +6,7 @@ from .scanner import scan, run_gitleaks, run_semgrep
 from .installer import install_gitleaks, get_gitleaks_path, is_gitleaks_installed
 from .config import load_config, create_config
 from .ai import analyze_with_ai
+from .detector import detect_project
 
 __all__ = [
     "scan",
@@ -17,4 +18,5 @@ __all__ = [
     "load_config",
     "create_config",
     "analyze_with_ai",
+    "detect_project",
 ]

@@ -4,6 +4,7 @@ const { doctor } = require('./doctor');
 const { loadConfig, createConfig } = require('./config');
 const { installGitleaks, getGitleaksPath, isGitleaksInstalled } = require('./installer');
 const { analyzeWithAI } = require('./ai');
+const { detectProject } = require('./detector');
 
 module.exports = {
   // Commands
@@ -14,6 +15,9 @@ module.exports = {
   // Scanner functions
   runGitleaks,
   runSemgrep,
+
+  // Project detection
+  detectProject,
 
   // Config
   loadConfig,

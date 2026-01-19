@@ -4,6 +4,7 @@ const fs = require('fs');
 const { getGitleaksPath } = require('./installer');
 const { loadConfig } = require('./config');
 const { analyzeWithAI } = require('./ai');
+const { detectProject } = require('./detector');
 
 function runGitleaks(projectRoot, files = null) {
   const gitleaksPath = getGitleaksPath();
@@ -134,9 +135,13 @@ function runSemgrep(projectRoot, files = null) {
 async function scan(options = {}) {
   const projectRoot = process.cwd();
   const config = loadConfig(projectRoot);
+  const project = detectProject(projectRoot);
 
   if (!options.prePush) {
-    console.log('\n🔍 Scanning project...\n');
+    const frameworkInfo = project.frameworks.length > 0
+      ? `${project.frameworks[0]} (${project.language})`
+      : project.primaryType || 'project';
+    console.log(`\n🔍 Scanning ${frameworkInfo}...\n`);
   }
 
   // Run scanners

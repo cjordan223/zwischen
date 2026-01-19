@@ -12,6 +12,7 @@ from typing import Any
 from .installer import get_gitleaks_path
 from .config import load_config
 from .ai import analyze_with_ai
+from .detector import detect_project
 
 
 def run_gitleaks(project_root: str = ".", files: list[str] | None = None) -> list[dict]:
@@ -158,9 +159,15 @@ def scan(
     """Run security scan."""
     project_root = os.getcwd()
     config = load_config(project_root)
+    project = detect_project(project_root)
 
     if not pre_push:
-        print("\n🔍 Scanning project...\n")
+        framework_info = (
+            f"{project['frameworks'][0]} ({project['language']})"
+            if project['frameworks']
+            else project['primary_type'] or 'project'
+        )
+        print(f"\n🔍 Scanning {framework_info}...\n")
 
     # Run scanners
     gitleaks_findings = run_gitleaks(project_root)
