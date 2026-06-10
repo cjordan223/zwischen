@@ -5,12 +5,12 @@ require_relative "lib/zwischen/version"
 Gem::Specification.new do |spec|
   spec.name          = "zwischen"
   spec.version       = Zwischen::VERSION
-  spec.authors       = ["Zwischen Contributors"]
-  spec.email         = [""]
+  spec.authors       = ["Conner Jordan"]
+  spec.email         = ["connercharlesjordan@gmail.com"]
 
   spec.summary       = "AI-augmented security scanning CLI for vibe coders"
   spec.description   = "Orchestrates Gitleaks and Semgrep scanners, aggregates findings, and uses AI to prioritize and explain security issues"
-  spec.homepage      = "https://github.com/zwischen/zwischen"
+  spec.homepage      = "https://github.com/cjordan223/zwischen"
   spec.license       = "MIT"
   spec.required_ruby_version = ">= 3.3.0"
 
