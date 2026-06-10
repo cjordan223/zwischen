@@ -26,3 +26,8 @@
 *.swo
 *~
 .scanrail.yml
+vendor/bundle/
+implementation_prompt.md
+archive/
+SHOWCASE_BRIEF.md
+*.gem
