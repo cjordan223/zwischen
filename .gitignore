@@ -31,3 +31,7 @@ implementation_prompt.md
 archive/
 SHOWCASE_BRIEF.md
 *.gem
+packages/pip/dist/
+packages/pip/build/
+packages/pip/*.egg-info/
+packages/npm/*.tgz

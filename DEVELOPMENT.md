@@ -125,3 +125,30 @@ cd packages/pip
 python -m pip install -e .
 zwischen --help
 ```
+
+## Releasing
+
+Releases are automated by `.github/workflows/release.yml`, triggered by a
+version tag:
+
+```bash
+# bump lib/zwischen/version.rb, packages/npm/package.json,
+# packages/pip/pyproject.toml, and CHANGELOG.md first
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+One-time registry setup (first release only):
+
+1. **RubyGems** — add a *pending trusted publisher* for the `zwischen` gem at
+   <https://rubygems.org/profile/oidc/pending_trusted_publishers>:
+   repository `cjordan223/zwischen`, workflow `release.yml`, environment `release`.
+2. **PyPI** — add a *pending trusted publisher* for the `zwischen-cli` project at
+   <https://pypi.org/manage/account/publishing/> with the same repository,
+   workflow, and environment. (The bare `zwischen` name is taken on PyPI by an
+   unrelated package, so the distribution is `zwischen-cli`; the installed
+   command is still `zwischen`.)
+3. **npm** — create an automation token at npmjs.com and save it as the
+   `NPM_TOKEN` repository secret.
+4. **GitHub** — create a `release` environment in the repo settings
+   (Settings → Environments) so the OIDC claims match.
