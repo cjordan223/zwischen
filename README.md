@@ -1,5 +1,11 @@
 # Zwischen
 
+[![CI](https://github.com/cjordan223/zwischen/actions/workflows/ci.yml/badge.svg)](https://github.com/cjordan223/zwischen/actions/workflows/ci.yml)
+[![Gem Version](https://img.shields.io/gem/v/zwischen)](https://rubygems.org/gems/zwischen)
+[![npm](https://img.shields.io/npm/v/zwischen)](https://www.npmjs.com/package/zwischen)
+[![PyPI](https://img.shields.io/pypi/v/zwischen-cli)](https://pypi.org/project/zwischen-cli/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 AI-augmented security scanning for local development workflows. Zwischen runs Gitleaks for secrets, optionally runs Semgrep for static analysis, aggregates findings, and can ask an AI provider to prioritize risks and suggest fixes.
 
 The Ruby gem is the canonical implementation in this repository. The npm and pip packages are convenience wrappers with a smaller command surface.
