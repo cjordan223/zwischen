@@ -1,0 +1,60 @@
+name: "Zwischen Security Scan"
+description: "Run Zwischen (Gitleaks + Semgrep orchestration) and optionally upload SARIF to GitHub code scanning"
+branding:
+  icon: "shield"
+  color: "purple"
+
+inputs:
+  ruby-version:
+    description: "Ruby version used to run the scanner"
+    required: false
+    default: "3.4"
+  semgrep:
+    description: "Install Semgrep so SAST findings are included"
+    required: false
+    default: "true"
+  fail-on-findings:
+    description: "Fail the job when blocking findings are present"
+    required: false
+    default: "true"
+  sarif-file:
+    description: "Path to write the SARIF report (empty to skip SARIF output)"
+    required: false
+    default: "zwischen.sarif"
+
+outputs:
+  sarif-file:
+    description: "Path of the generated SARIF report"
+    value: ${{ inputs.sarif-file }}
+
+runs:
+  using: "composite"
+  steps:
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ inputs.ruby-version }}
+
+    - name: Install Zwischen
+      shell: bash
+      run: gem install zwischen
+
+    - name: Install Semgrep
+      if: inputs.semgrep == 'true'
+      shell: bash
+      run: pipx install semgrep || pip install semgrep
+
+    - name: Run scan
+      shell: bash
+      run: |
+        set +e
+        if [ -n "${{ inputs.sarif-file }}" ]; then
+          zwischen scan --format sarif > "${{ inputs.sarif-file }}"
+        else
+          zwischen scan
+        fi
+        status=$?
+        if [ "${{ inputs.fail-on-findings }}" != "true" ] && [ "$status" -eq 1 ]; then
+          echo "Findings present, but fail-on-findings is disabled."
+          exit 0
+        fi
+        exit $status

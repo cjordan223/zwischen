@@ -7,7 +7,7 @@ require_relative "base_client"
 module Zwischen
   module AI
     class OpenAIClient < BaseClient
-      API_BASE_URL = "https://api.openai.com/v1"
+      API_BASE_URL = "https://api.openai.com/v1/"
 
       def initialize(api_key: nil, config: {})
         super
@@ -23,7 +23,8 @@ module Zwischen
       def analyze(prompt)
         model = @config["model"] || "gpt-4"
 
-        response = @client.post("/chat/completions") do |req|
+        # Relative path: a leading slash would discard the /v1 prefix of the base URL
+        response = @client.post("chat/completions") do |req|
           req.headers["Authorization"] = "Bearer #{@api_key}"
           req.body = {
             model: model,

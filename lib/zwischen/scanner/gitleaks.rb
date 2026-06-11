@@ -70,7 +70,7 @@ module Zwischen
             severity: map_severity(finding["RuleID"]),
             file: finding["File"],
             line: finding["StartLine"],
-            message: finding["RuleID"] || "Secret detected",
+            message: finding["Description"] || finding["RuleID"] || "Secret detected",
             rule_id: finding["RuleID"],
             code_snippet: finding["Secret"],
             raw_data: finding
