@@ -7,7 +7,7 @@ require_relative "base_client"
 module Zwischen
   module AI
     class AnthropicClient < BaseClient
-      API_BASE_URL = "https://api.anthropic.com/v1"
+      API_BASE_URL = "https://api.anthropic.com/v1/"
       API_VERSION = "2023-06-01"
 
       def initialize(api_key: nil, config: {})
@@ -24,7 +24,8 @@ module Zwischen
       def analyze(prompt)
         model = @config["model"] || "claude-3-5-sonnet-20241022"
 
-        response = @client.post("/messages") do |req|
+        # Relative path: a leading slash would discard the /v1 prefix of the base URL
+        response = @client.post("messages") do |req|
           req.headers["x-api-key"] = @api_key
           req.headers["anthropic-version"] = API_VERSION
           req.body = {

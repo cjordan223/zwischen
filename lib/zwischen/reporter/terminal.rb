@@ -42,6 +42,41 @@ module Zwischen
         exit_code
       end
 
+      def report_compact
+        blocking_severity = @config&.blocking_severity || "high"
+        findings = @results[:findings]
+
+        # Filter to only blocking findings
+        blocking_findings = findings.select { |f| should_block?(f, blocking_severity) }
+
+        # If no blocking findings, exit silently (exit code 0)
+        return 0 if blocking_findings.empty?
+
+        # Show compact output for blocking findings
+        puts "🛡️  Zwischen: #{blocking_findings.length} issue#{blocking_findings.length == 1 ? '' : 's'} found\n\n"
+
+        blocking_findings.each do |finding|
+          severity_color = SEVERITY_COLORS[finding.severity] || :white
+          severity_label = finding.severity.upcase
+
+          puts "  #{severity_label}".colorize(severity_color) + "  #{finding.file}:#{finding.line || '?'}"
+          puts "            #{finding.message}"
+
+          # Show fix suggestion if available
+          if @ai_enabled && finding.raw_data["ai_fix_suggestion"]
+            puts "            → #{finding.raw_data['ai_fix_suggestion']}"
+          end
+
+          puts ""
+        end
+
+        puts "Push blocked. Fix issues above or:"
+        puts "  • Run 'zwischen scan' for full report"
+        puts "  • Run 'git push --no-verify' to skip (not recommended)"
+
+        1 # Exit code 1 = push blocked
+      end
+
       private
 
       def print_summary
@@ -113,41 +148,6 @@ module Zwischen
         end
 
         puts ""
-      end
-
-      def report_compact
-        blocking_severity = @config&.blocking_severity || "high"
-        findings = @results[:findings]
-        
-        # Filter to only blocking findings
-        blocking_findings = findings.select { |f| should_block?(f, blocking_severity) }
-
-        # If no blocking findings, exit silently (exit code 0)
-        return 0 if blocking_findings.empty?
-
-        # Show compact output for blocking findings
-        puts "🛡️  Zwischen: #{blocking_findings.length} issue#{blocking_findings.length == 1 ? '' : 's'} found\n\n"
-
-        blocking_findings.each do |finding|
-          severity_color = SEVERITY_COLORS[finding.severity] || :white
-          severity_label = finding.severity.upcase
-
-          puts "  #{severity_label}".colorize(severity_color) + "  #{finding.file}:#{finding.line || '?'}"
-          puts "            #{finding.message}"
-
-          # Show fix suggestion if available
-          if @ai_enabled && finding.raw_data["ai_fix_suggestion"]
-            puts "            → #{finding.raw_data['ai_fix_suggestion']}"
-          end
-
-          puts ""
-        end
-
-        puts "Push blocked. Fix issues above or:"
-        puts "  • Run 'zwischen scan' for full report"
-        puts "  • Run 'git push --no-verify' to skip (not recommended)"
-
-        1 # Exit code 1 = push blocked
       end
 
       def should_block?(finding, blocking_severity)

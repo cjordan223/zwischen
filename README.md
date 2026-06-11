@@ -92,7 +92,7 @@ scanners:
     config: p/security-audit
 ```
 
-The Ruby implementation accepts both boolean scanner entries (`gitleaks: true`) and detailed entries (`gitleaks: { enabled: true }`). The `ignore` config key exists in the schema, but scanner adapters do not currently enforce those globs.
+The Ruby implementation accepts both boolean scanner entries (`gitleaks: true`) and detailed entries (`gitleaks: { enabled: true }`). Findings in paths matching the `ignore` globs are dropped before reporting.
 
 Credentials are read from environment variables first, then from `~/.zwischen/credentials`. The Ruby initializer stores `ANTHROPIC_API_KEY` in that credentials file when it is present.
 

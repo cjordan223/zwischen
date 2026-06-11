@@ -275,7 +275,6 @@ Expected for the current Ruby implementation:
 - Existing hook is copied to `.git/hooks/pre-push.zwischen.backup` or a timestamped variant.
 - New Zwischen hook replaces `.git/hooks/pre-push`.
 
-Note: `Hooks.handle_existing_hook` contains backup/append/skip logic, but `Setup#install_hook` does not currently call it.
 
 ### Test 6.3: Default Branch Detection
 

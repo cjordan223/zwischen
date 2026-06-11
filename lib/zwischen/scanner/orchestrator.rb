@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "pathname"
 require_relative "gitleaks"
 require_relative "semgrep"
 
@@ -35,7 +36,7 @@ module Zwischen
 
         # Flatten all findings
         # Note: In pre-push mode, we pass file lists to scanners when available
-        results.values.flatten
+        reject_ignored(results.values.flatten, project_root)
       end
 
       def available_scanners
@@ -47,6 +48,29 @@ module Zwischen
       end
 
       private
+
+      # Drop findings whose file matches an ignore glob from .zwischen.yml.
+      # Scanner output may use absolute or project-relative paths, so match
+      # against the path relative to project_root.
+      def reject_ignored(findings, project_root)
+        globs = @config.ignored_paths
+        return findings if globs.empty?
+
+        findings.reject do |finding|
+          path = finding.file
+          if File.absolute_path?(path)
+            path = Pathname.new(path).relative_path_from(project_root).to_s rescue path
+          end
+
+          flags = File::FNM_PATHNAME | File::FNM_EXTGLOB
+          globs.any? do |glob|
+            # A trailing "**" under FNM_PATHNAME only matches one path segment;
+            # also try "**/*" so "**/dist/**" covers files nested below dist/.
+            File.fnmatch?(glob, path, flags) ||
+              File.fnmatch?(glob.sub(%r{/\*\*\z}, "/**/*"), path, flags)
+          end
+        end
+      end
 
       def build_scanners
         scanners = []
