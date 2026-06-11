@@ -89,7 +89,7 @@ Package-wrapper parity changes:
 
 ## Known Iteration Points
 
-- Ruby `Hooks.handle_existing_hook` has backup/append/skip logic, but `Setup#install_hook` currently backs up and replaces existing non-Zwischen hooks directly.
+- Existing non-Zwischen pre-push hooks (husky shims, hand-written scripts) are backed up and then appended to, not replaced — the original checks keep running, and `zwischen uninstall` strips only the appended block.
 - Ruby config exposes `severity.fail_on`, but blocking decisions use `blocking.severity`. (`ignore` globs are enforced by the orchestrator.)
 - npm and pip wrappers do not yet match Ruby feature parity. They do not support `uninstall`, `--only`, `--changed`, `--format sarif`, Ruby's changed-file pre-push filtering, or the Ruby JSON summary shape.
 - npm and pip wrappers default AI provider to Ollama, while Ruby defaults to Claude.

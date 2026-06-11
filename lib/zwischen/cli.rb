@@ -202,6 +202,12 @@ module Zwischen
       Setup.uninstall
     end
 
+    desc "version", "Print the Zwischen version"
+    map %w[--version -v] => :version
+    def version
+      puts "zwischen #{Zwischen::VERSION}"
+    end
+
     default_task :scan
 
     private

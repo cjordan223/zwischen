@@ -77,7 +77,7 @@ is in [docs/design.md](docs/design.md).
 
 | Command | What it does |
 | --- | --- |
-| `zwischen init` | Installs/checks tools, creates config, installs pre-push hook (backs up an existing non-Zwischen hook). |
+| `zwischen init` | Installs/checks tools, creates config, installs pre-push hook. An existing hook (husky, hand-written) is backed up and appended to — its checks keep running. |
 | `zwischen scan` | Runs enabled scanners, prints a terminal report. |
 | `zwischen scan --changed` | Scans only files changed since the default branch, including staged and untracked files. |
 | `zwischen scan --only secrets,sast` | Limits to Gitleaks (`secrets`) and/or Semgrep (`sast`). |
@@ -86,7 +86,8 @@ is in [docs/design.md](docs/design.md).
 | `zwischen scan --format sarif` | SARIF 2.1.0 for GitHub code scanning. |
 | `zwischen scan --pre-push` | Quiet hook mode: changed files only, compact output only when blocking. |
 | `zwischen doctor` | Shows Gitleaks and Semgrep status. |
-| `zwischen uninstall` | Removes the hook, optionally config/credentials. |
+| `zwischen uninstall` | Removes the hook (or just the appended block), optionally config/credentials. |
+| `zwischen --version` | Prints the version. |
 
 Escape hatches: `git push --no-verify` or `ZWISCHEN_SKIP=1 git push`.
 
@@ -198,7 +199,7 @@ docs/                         Design write-up, triage example, demo GIF
 ## Development
 
 ```bash
-bundle exec rspec             # 212 examples
+bundle exec rspec             # 216 examples
 ./scripts/test_as_gem.sh      # install and exercise as a real gem
 ```
 

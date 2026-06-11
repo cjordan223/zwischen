@@ -297,7 +297,12 @@ zwischen init
 Expected for the current Ruby implementation:
 
 - Existing hook is copied to `.git/hooks/pre-push.zwischen.backup` or a timestamped variant.
-- New Zwischen hook replaces `.git/hooks/pre-push`.
+- The Zwischen check is appended to `.git/hooks/pre-push` between
+  `# >>> Zwischen pre-push hook >>>` markers; the original hook content
+  still runs first.
+- Running `zwischen init` again does not append a second block.
+- `zwischen uninstall` strips only the appended block, restoring the
+  original hook content.
 
 
 ### Test 6.3: Default Branch Detection

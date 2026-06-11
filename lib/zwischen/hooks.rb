@@ -34,12 +34,27 @@ module Zwischen
       zwischen_hook?(path)
     end
 
+    # Delimiters around the block we append to a pre-existing foreign hook,
+    # so uninstall can strip exactly our lines and leave the rest intact.
+    APPEND_BEGIN = "# >>> #{HOOK_MARKER} >>>"
+    APPEND_END = "# <<< #{HOOK_MARKER} <<<"
+
     def self.install(project_root = Dir.pwd)
       path = hook_path(project_root)
       hooks_dir = File.dirname(path)
 
       # Ensure hooks directory exists
       FileUtils.mkdir_p(hooks_dir) unless File.directory?(hooks_dir)
+
+      if File.exist?(path)
+        # Already present (standalone or appended) — never overwrite, an
+        # appended hook also contains the user's own commands.
+        return true if zwischen_hook?(path)
+
+        # A foreign hook (husky shim, hand-written script, ...) keeps
+        # working: we append our check instead of replacing the user's.
+        return append_to_existing(path)
+      end
 
       hook_content = <<~HOOK
         #!/usr/bin/env bash
@@ -59,39 +74,24 @@ module Zwischen
       true
     end
 
-    def self.handle_existing_hook(hook_path, shell)
-      return :skip unless File.exist?(hook_path)
-      return :install if zwischen_hook?(hook_path) # Already a Zwischen hook, can overwrite
+    def self.append_to_existing(path)
+      existing = File.read(path)
+      return true if existing.include?(HOOK_MARKER) # already appended
 
-      shell.say("\n⚠️  A pre-push hook already exists at #{hook_path}", :yellow)
-      choice = shell.ask("What would you like to do?", limited_to: %w[backup append skip], default: "backup")
+      block = <<~BLOCK
 
-      case choice
-      when "backup"
-        backup_path = "#{hook_path}.zwischen.backup"
-        FileUtils.cp(hook_path, backup_path)
-        shell.say("  ✓ Backed up to #{backup_path}", :green)
-        :install
-      when "append"
-        existing_content = File.read(hook_path)
-        new_content = <<~APPEND
-          #{existing_content}
-
-          # #{HOOK_MARKER} - appended by 'zwischen init'
-          if [ "$ZWISCHEN_SKIP" = "1" ]; then
-            exit 0
-          fi
-
+        #{APPEND_BEGIN}
+        # appended by 'zwischen init' - your original hook above still runs
+        if [ "$ZWISCHEN_SKIP" != "1" ]; then
           zwischen scan --pre-push || exit $?
-        APPEND
-        File.write(hook_path, new_content)
-        File.chmod(0o755, hook_path)
-        shell.say("  ✓ Appended Zwischen check to existing hook", :green)
-        :skip # Don't install new hook, already appended
-      when "skip"
-        shell.say("  ↳ Skipping hook installation", :yellow)
-        :skip
-      end
+        fi
+        #{APPEND_END}
+      BLOCK
+
+      File.write(path, existing.chomp + "\n" + block)
+      File.chmod(0o755, path)
+
+      true
     end
 
     def self.uninstall(project_root = Dir.pwd)
@@ -99,7 +99,15 @@ module Zwischen
       return false unless File.exist?(path)
       return false unless zwischen_hook?(path)
 
-      File.delete(path)
+      content = File.read(path)
+      if content.include?(APPEND_BEGIN)
+        # We were appended to someone else's hook: strip only our block.
+        stripped = content.gsub(/\n?#{Regexp.escape(APPEND_BEGIN)}.*?#{Regexp.escape(APPEND_END)}\n?/m, "\n")
+        File.write(path, stripped)
+      else
+        # The whole file is ours.
+        File.delete(path)
+      end
       true
     end
   end

@@ -57,6 +57,49 @@ RSpec.describe Zwischen::Hooks do
     end
   end
 
+  describe "coexistence with foreign hooks" do
+    it "appends to an existing foreign hook instead of replacing it" do
+      create_foreign_hook
+
+      expect(described_class.install(project_root)).to be true
+
+      content = File.read(hook_path)
+      expect(content).to start_with("#!/bin/sh")
+      expect(content).to include("custom hook")             # original preserved
+      expect(content).to include(described_class::APPEND_BEGIN)
+      expect(content).to include("zwischen scan --pre-push")
+      expect(File.executable?(hook_path)).to be true
+    end
+
+    it "does not append twice" do
+      create_foreign_hook
+      described_class.install(project_root)
+      described_class.install(project_root)
+
+      content = File.read(hook_path)
+      expect(content.scan(described_class::APPEND_BEGIN).count).to eq(1)
+    end
+
+    it "uninstall strips only the appended block and keeps the foreign hook" do
+      create_foreign_hook
+      described_class.install(project_root)
+
+      expect(described_class.uninstall(project_root)).to be true
+
+      content = File.read(hook_path)
+      expect(content).to include("custom hook")
+      expect(content).not_to include("zwischen scan")
+      expect(content).not_to include(described_class::APPEND_BEGIN)
+    end
+
+    it "uninstall deletes the file when the whole hook is ours" do
+      described_class.install(project_root)
+
+      expect(described_class.uninstall(project_root)).to be true
+      expect(File.exist?(hook_path)).to be false
+    end
+  end
+
   describe ".install" do
     it "creates an executable pre-push hook containing the Zwischen marker" do
       result = described_class.install(project_root)

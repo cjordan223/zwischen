@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-06-11
+
+### Added
+- `zwischen --version` (also `-v` and `zwischen version`)
+
+### Changed
+- Existing non-Zwischen pre-push hooks (husky shims, hand-written scripts)
+  are now appended to instead of replaced: the original checks keep
+  running before Zwischen's, repeat `init` never double-appends, and
+  `zwischen uninstall` strips only the appended block, restoring the
+  original hook exactly. A backup copy is still written first.
+
 ## [0.1.1] - 2026-06-11
 
 ### Fixed
@@ -45,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Project type detection (Next.js, React, Django, Rails, and more)
 - npm (`zwischen`) and pip (`zwischen-cli`) wrapper packages
 
-[Unreleased]: https://github.com/cjordan223/zwischen/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/cjordan223/zwischen/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/cjordan223/zwischen/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/cjordan223/zwischen/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/cjordan223/zwischen/releases/tag/v0.1.0

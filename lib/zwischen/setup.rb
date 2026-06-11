@@ -126,12 +126,14 @@ module Zwischen
         @shell.say("  ↳ Git hooks are redirected (core.hooksPath or worktree); installing to #{hook_path}", :yellow)
       end
 
+      appending = false
       if File.exist?(hook_path)
         if Hooks.zwischen_hook?(hook_path)
           @shell.say("  ✓ Pre-push hook already installed", :green)
           return true
         end
 
+        appending = true
         backup_path = "#{hook_path}.zwischen.backup"
         if File.exist?(backup_path)
           timestamp = Time.now.strftime("%Y%m%d%H%M%S")
@@ -142,7 +144,11 @@ module Zwischen
       end
 
       if Hooks.install(project_root)
-        @shell.say("  ✓ Installing pre-push hook", :green)
+        if appending
+          @shell.say("  ✓ Added Zwischen to your existing pre-push hook (original checks still run)", :green)
+        else
+          @shell.say("  ✓ Installing pre-push hook", :green)
+        end
         true
       else
         @shell.say("  ✗ Failed to install hook", :red)
