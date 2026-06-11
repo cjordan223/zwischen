@@ -89,6 +89,16 @@ RSpec.describe Zwischen::CLI do
         expect(status).to eq(1)
         expect(Zwischen::Reporter::Terminal).to have_received(:report)
       end
+
+      it "passes the loaded config to the terminal reporter so blocking.severity is honored" do
+        allow(orchestrator).to receive(:scan).and_return([build_finding])
+        allow(Zwischen::Reporter::Terminal).to receive(:report).and_return(0)
+
+        run_cli(%w[scan])
+
+        expect(Zwischen::Reporter::Terminal)
+          .to have_received(:report).with(anything, hash_including(config: config))
+      end
     end
 
     context "with --format json" do

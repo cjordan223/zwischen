@@ -37,12 +37,14 @@ Supported scan flags:
 - `--format`: `terminal` or `json`
 - `--pre-push`: compact hook mode
 
+`--format json` prints only a JSON document to stdout (no banners), matching the Ruby gem's shape: a `summary` object (`total` plus `by_severity` counts) and a `findings` array. File paths are relative to the project root, and `ignore:` globs from `.zwischen.yml` are applied.
+
 Not currently supported in this wrapper:
 
 - `zwischen uninstall`
 - `zwischen scan --only ...`
 - `zwischen scan --changed`
-- `zwischen scan --format sarif`
+- `zwischen scan --format sarif` (exits with code 2 and an error message; use the Ruby gem)
 - Ruby's changed-file filtering for `--pre-push`
 
 ## Behavior

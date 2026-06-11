@@ -17,19 +17,31 @@ module Zwischen
       "HEAD"
     end
 
-    def self.changed_files(remote: nil, local: "HEAD")
+    # include_working_tree: also count staged and untracked files. Used by
+    # manual `scan --changed`; pre-push keeps committed-range semantics
+    # because only committed changes get pushed.
+    def self.changed_files(remote: nil, local: "HEAD", include_working_tree: false)
       branch = remote || default_branch
       remote_ref = "origin/#{branch}"
 
+      files = []
+
       # Try remote diff first
-      files = `git diff --name-only #{remote_ref}...#{local} 2>/dev/null`.strip.split("\n")
-      return files.reject(&:empty?) if $?.success? && !files.empty?
+      committed = `git diff --name-only #{remote_ref}...#{local} 2>/dev/null`.strip.split("\n")
+      if $?.success? && !committed.empty?
+        files = committed
+      else
+        # Fallback: local diff
+        local_diff = `git diff --name-only HEAD@{1}...#{local} 2>/dev/null`.strip.split("\n")
+        files = local_diff if $?.success?
+      end
 
-      # Fallback: local diff
-      files = `git diff --name-only HEAD@{1}...#{local} 2>/dev/null`.strip.split("\n")
-      return files.reject(&:empty?) if $?.success?
+      if include_working_tree
+        working = `git status --porcelain 2>/dev/null`.strip.split("\n").map { |l| l[3..]&.strip }.compact
+        files |= working if $?.success?
+      end
 
-      []
+      files.reject { |f| f.nil? || f.empty? }
     rescue StandardError => e
       warn "Failed to get changed files: #{e.message}" if ENV["DEBUG"]
       []

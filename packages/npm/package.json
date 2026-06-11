@@ -1,6 +1,6 @@
 {
   "name": "zwischen",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AI-augmented security scanning for vibe coders. Zero-config secrets detection and vulnerability scanning.",
   "main": "src/index.js",
   "bin": {

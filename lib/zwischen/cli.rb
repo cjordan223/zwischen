@@ -91,7 +91,7 @@ module Zwischen
 
       changed_files = nil
       if pre_push || options[:changed]
-        changed_files = GitDiff.changed_files
+        changed_files = GitDiff.changed_files(include_working_tree: !pre_push)
         changed_files = changed_files.select do |path|
           candidate = path
           candidate = File.join(project[:root], candidate) unless Pathname.new(candidate).absolute?
@@ -173,7 +173,7 @@ module Zwischen
         require "json"
         puts JSON.pretty_generate({
           summary: aggregated[:summary],
-          findings: aggregated[:findings].map(&:to_h)
+          findings: aggregated[:findings].map { |f| f.to_h.merge(file: relative_path(f.file, project[:root])) }
         })
         blocking_severity = config.blocking_severity
         exit_code = aggregated[:findings].any? { |f| should_block?(f, blocking_severity, ai_enabled) } ? 1 : 0
@@ -187,7 +187,7 @@ module Zwischen
         if pre_push
           exit_code = Reporter::Terminal.report_compact(aggregated, config: config, ai_enabled: ai_enabled)
         else
-          exit_code = Reporter::Terminal.report(aggregated, ai_enabled: ai_enabled)
+          exit_code = Reporter::Terminal.report(aggregated, config: config, ai_enabled: ai_enabled)
         end
         exit exit_code
       end
@@ -205,6 +205,18 @@ module Zwischen
     default_task :scan
 
     private
+
+    # Scanners may emit absolute (and symlink-resolved) paths; report
+    # machine-readable output relative to the project root like the
+    # terminal and SARIF reporters do.
+    def relative_path(path, project_root)
+      expanded = File.expand_path(path.to_s)
+      roots = [project_root, (File.realpath(project_root) rescue project_root)].uniq
+      roots.each do |root|
+        return expanded.delete_prefix("#{root}/") if expanded.start_with?("#{root}/")
+      end
+      path.to_s
+    end
 
     def should_block?(finding, blocking_severity, ai_enabled)
       return false if ai_enabled && finding.raw_data["ai_false_positive"]

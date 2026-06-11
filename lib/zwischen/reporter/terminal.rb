@@ -22,8 +22,8 @@ module Zwischen
         "info" => "ℹ️  INFO"
       }.freeze
 
-      def self.report(aggregated_results, ai_enabled: false)
-        new(aggregated_results, ai_enabled: ai_enabled).report
+      def self.report(aggregated_results, config: nil, ai_enabled: false)
+        new(aggregated_results, ai_enabled: ai_enabled, config: config).report
       end
 
       def self.report_compact(aggregated_results, config:, ai_enabled: false)

@@ -41,6 +41,31 @@ RSpec.describe Zwischen::GitDiff do
     end
   end
 
+  describe ".changed_files with include_working_tree" do
+    it "unions staged and untracked files from git status into the result" do
+      set_last_status(true)
+      allow(described_class).to receive(:`)
+        .with("git diff --name-only origin/main...HEAD 2>/dev/null")
+        .and_return("lib/a.rb\n")
+      allow(described_class).to receive(:`)
+        .with("git status --porcelain 2>/dev/null")
+        .and_return("A  staged.env\n?? untracked.env\n M lib/a.rb\n")
+
+      files = described_class.changed_files(remote: "main", include_working_tree: true)
+      expect(files).to contain_exactly("lib/a.rb", "staged.env", "untracked.env")
+    end
+
+    it "does not consult git status without the flag" do
+      set_last_status(true)
+      allow(described_class).to receive(:`)
+        .with("git diff --name-only origin/main...HEAD 2>/dev/null")
+        .and_return("lib/a.rb\n")
+
+      expect(described_class).not_to receive(:`).with(/git status/)
+      expect(described_class.changed_files(remote: "main")).to eq(["lib/a.rb"])
+    end
+  end
+
   describe ".default_branch" do
     it "uses the remote HEAD branch when available" do
       set_last_status(true)

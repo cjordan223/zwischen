@@ -150,6 +150,69 @@ def run_semgrep(project_root: str = ".", files: list[str] | None = None) -> list
     return findings
 
 
+def _glob_to_regex(glob: str) -> "re.Pattern":
+    """Convert an ignore glob to an anchored regex.
+
+    Unlike fnmatch, `**` spans directory separators (`**/` also matches
+    zero directories, so `**/dist/**` covers a top-level `dist/`), while
+    `*` and `?` stop at `/` -- matching the Ruby orchestrator's semantics.
+    """
+    pattern = ""
+    i = 0
+    while i < len(glob):
+        if glob.startswith("**/", i):
+            pattern += "(?:.*/)?"
+            i += 3
+        elif glob.startswith("**", i):
+            pattern += ".*"
+            i += 2
+        elif glob[i] == "*":
+            pattern += "[^/]*"
+            i += 1
+        elif glob[i] == "?":
+            pattern += "[^/]"
+            i += 1
+        else:
+            pattern += re.escape(glob[i])
+            i += 1
+    return re.compile(pattern + r"\Z")
+
+
+def _relativize(path: str, project_root: str) -> str:
+    """Return path relative to project_root (scanners may emit absolute paths)."""
+    if not path or not os.path.isabs(path):
+        return path
+    try:
+        return os.path.relpath(path, project_root)
+    except ValueError:
+        return path
+
+
+def _reject_ignored(findings: list[dict], ignore_globs: list[str]) -> list[dict]:
+    """Drop findings whose file matches an ignore glob from .zwischen.yml."""
+    if not ignore_globs:
+        return findings
+
+    patterns = [_glob_to_regex(glob) for glob in ignore_globs]
+    return [
+        f for f in findings
+        if not any(p.match(f.get("file", "").replace(os.sep, "/")) for p in patterns)
+    ]
+
+
+def _build_summary(findings: list[dict]) -> dict:
+    """Build the summary block used by JSON output (matches the Ruby gem)."""
+    summary: dict[str, Any] = {"total": len(findings), "by_severity": {}}
+    for severity in ("critical", "high", "medium", "low", "info"):
+        count = sum(
+            1 for f in findings
+            if (f.get("severity") or "medium").lower() == severity
+        )
+        if count > 0:
+            summary["by_severity"][severity] = count
+    return summary
+
+
 def scan(
     ai: str | None = None,
     api_key: str | None = None,
@@ -157,11 +220,20 @@ def scan(
     pre_push: bool = False,
 ) -> None:
     """Run security scan."""
+    if output_format == "sarif":
+        print(
+            "Error: SARIF output is not supported by the pip wrapper; "
+            "use the Ruby gem (gem install zwischen).",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
     project_root = os.getcwd()
     config = load_config(project_root)
     project = detect_project(project_root)
+    json_mode = output_format == "json"
 
-    if not pre_push:
+    if not pre_push and not json_mode:
         framework_info = (
             f"{project['frameworks'][0]} ({project['language']})"
             if project['frameworks']
@@ -174,14 +246,21 @@ def scan(
     semgrep_findings = run_semgrep(project_root)
     findings = gitleaks_findings + semgrep_findings
 
+    # Report paths relative to the project root, then drop ignored paths
+    for f in findings:
+        f["file"] = _relativize(f.get("file", ""), project_root)
+    findings = _reject_ignored(findings, config.get("ignore") or [])
+
     if not findings:
-        if not pre_push:
+        if json_mode:
+            print(json.dumps({"summary": _build_summary([]), "findings": []}, indent=2))
+        elif not pre_push:
             print("✅ No security issues found!\n")
         sys.exit(0)
 
     # AI analysis if requested
     if ai:
-        if not pre_push:
+        if not pre_push and not json_mode:
             print(f"🤖 Analyzing with AI ({ai})...\n")
         try:
             findings = analyze_with_ai(
@@ -191,11 +270,11 @@ def scan(
             )
         except Exception as e:
             if not pre_push:
-                print(f"⚠️  AI analysis unavailable: {e}")
+                print(f"⚠️  AI analysis unavailable: {e}", file=sys.stderr if json_mode else sys.stdout)
 
     # Report findings
-    if output_format == "json":
-        print(json.dumps({"findings": findings}, indent=2))
+    if json_mode:
+        print(json.dumps({"summary": _build_summary(findings), "findings": findings}, indent=2))
     else:
         _report_findings(findings, pre_push)
 

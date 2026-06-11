@@ -72,6 +72,73 @@ function runGitleaks(projectRoot, files = null) {
   }));
 }
 
+const SEVERITY_LEVELS = ['critical', 'high', 'medium', 'low', 'info'];
+
+// Convert a .zwischen.yml ignore glob to a RegExp. Mirrors the Ruby
+// orchestrator's fnmatch semantics: "*" and "?" stay within one path
+// segment, "**" spans directories, and patterns match paths relative
+// to the project root.
+function globToRegExp(glob) {
+  let regex = '';
+  let i = 0;
+  while (i < glob.length) {
+    const char = glob[i];
+    if (char === '*') {
+      if (glob[i + 1] === '*') {
+        if (glob[i + 2] === '/') {
+          // "**/" matches zero or more leading directories
+          regex += '(?:[^/]+/)*';
+          i += 3;
+        } else {
+          // bare or trailing "**" matches anything, including "/"
+          regex += '.*';
+          i += 2;
+        }
+      } else {
+        regex += '[^/]*';
+        i += 1;
+      }
+    } else if (char === '?') {
+      regex += '[^/]';
+      i += 1;
+    } else {
+      regex += char.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+      i += 1;
+    }
+  }
+  return new RegExp(`^${regex}$`);
+}
+
+// Drop findings whose file matches an ignore glob from .zwischen.yml.
+// Equivalent to the Ruby orchestrator's #reject_ignored.
+function rejectIgnored(findings, globs) {
+  if (!Array.isArray(globs) || globs.length === 0) return findings;
+  const matchers = globs.map(globToRegExp);
+  return findings.filter(f => !matchers.some(re => re.test(f.file)));
+}
+
+// Scanner output may use absolute paths; report everything relative
+// to the project root, like the Ruby gem.
+function relativizeFindingPaths(findings, projectRoot) {
+  return findings.map(f => {
+    if (f.file && path.isAbsolute(f.file)) {
+      return { ...f, file: path.relative(projectRoot, f.file) };
+    }
+    return f;
+  });
+}
+
+// Matches the Ruby aggregator's summary shape: total count plus
+// per-severity counts (only severities that actually occur).
+function buildSummary(findings) {
+  const summary = { total: findings.length, by_severity: {} };
+  for (const severity of SEVERITY_LEVELS) {
+    const count = findings.filter(f => (f.severity || '').toLowerCase() === severity).length;
+    if (count > 0) summary.by_severity[severity] = count;
+  }
+  return summary;
+}
+
 function mapGitleaksSeverity(ruleId) {
   const id = (ruleId || '').toLowerCase();
   if (/aws.*key|api.*key|private.*key|secret.*key/.test(id)) return 'critical';
@@ -133,11 +200,17 @@ function runSemgrep(projectRoot, files = null) {
 }
 
 async function scan(options = {}) {
+  if (options.format === 'sarif') {
+    console.error('SARIF output is not supported by the npm wrapper; use the Ruby gem (gem install zwischen)');
+    process.exit(2);
+  }
+
   const projectRoot = process.cwd();
   const config = loadConfig(projectRoot);
   const project = detectProject(projectRoot);
+  const jsonMode = options.format === 'json';
 
-  if (!options.prePush) {
+  if (!options.prePush && !jsonMode) {
     const frameworkInfo = project.frameworks.length > 0
       ? `${project.frameworks[0]} (${project.language})`
       : project.primaryType || 'project';
@@ -147,10 +220,13 @@ async function scan(options = {}) {
   // Run scanners
   const gitleaksFindings = runGitleaks(projectRoot);
   const semgrepFindings = runSemgrep(projectRoot);
-  let findings = [...gitleaksFindings, ...semgrepFindings];
+  let findings = relativizeFindingPaths([...gitleaksFindings, ...semgrepFindings], projectRoot);
+  findings = rejectIgnored(findings, config.ignore);
 
   if (findings.length === 0) {
-    if (!options.prePush) {
+    if (jsonMode) {
+      console.log(JSON.stringify({ summary: buildSummary(findings), findings }, null, 2));
+    } else if (!options.prePush) {
       console.log('✅ No security issues found!\n');
     }
     process.exit(0);
@@ -158,7 +234,7 @@ async function scan(options = {}) {
 
   // AI analysis if requested
   if (options.ai) {
-    if (!options.prePush) {
+    if (!options.prePush && !jsonMode) {
       console.log(`🤖 Analyzing with AI (${options.ai})...\n`);
     }
     try {
@@ -174,8 +250,8 @@ async function scan(options = {}) {
   }
 
   // Report findings
-  if (options.format === 'json') {
-    console.log(JSON.stringify({ findings }, null, 2));
+  if (jsonMode) {
+    console.log(JSON.stringify({ summary: buildSummary(findings), findings }, null, 2));
   } else {
     reportFindings(findings, options.prePush);
   }

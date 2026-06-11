@@ -39,12 +39,14 @@ Supported scan flags:
 - `--format`: `terminal` or `json`
 - `--pre-push`: compact hook mode
 
+`--format json` prints only a JSON document on stdout (no banners), shaped like the Ruby gem's output: `{"summary": {"total": N, "by_severity": {...}}, "findings": [...]}`. File paths in findings are relative to the project root, and `ignore:` globs from `.zwischen.yml` are honored.
+
 Not currently supported in this wrapper:
 
 - `zwischen uninstall`
 - `zwischen scan --only ...`
 - `zwischen scan --changed`
-- `zwischen scan --format sarif`
+- `zwischen scan --format sarif` (exits with status 2 and an error; use the Ruby gem for SARIF)
 - Ruby's changed-file filtering for `--pre-push`
 
 ## Behavior
@@ -74,9 +76,18 @@ blocking:
 scanners:
   gitleaks: true
   semgrep: true
+
+ignore:
+  - "**/node_modules/**"
+  - "**/vendor/**"
+  - "**/.git/**"
+  - "**/dist/**"
+  - "**/build/**"
 ```
 
 Blocking severities are `high`, `critical`, or `none`.
+
+`ignore:` entries are glob patterns matched against paths relative to the project root; `**` spans directories (so `**/dist/**` also covers a top-level `dist/`). Findings in ignored paths are dropped from all output formats.
 
 ## License
 

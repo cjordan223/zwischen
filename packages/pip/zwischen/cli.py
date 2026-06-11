@@ -7,7 +7,7 @@ from .doctor import doctor as do_doctor
 
 
 @click.group()
-@click.version_option()
+@click.version_option(package_name="zwischen-cli")
 def main():
     """AI-augmented security scanning for vibe coders."""
     pass

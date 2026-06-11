@@ -67,8 +67,11 @@ model via Ollama.
 
 Manual scans use AI when `--ai` is passed or config enables it. Pre-push
 scans stay scanner-only unless `ai.pre_push_enabled: true` — blocking
-decisions should be fast and deterministic. The design rationale is in
-[docs/design.md](docs/design.md).
+decisions should be fast and deterministic. Annotation quality is
+model-dependent: larger models give reliably structured, accurate triage,
+while very small local models may fail to annotate. If AI is unavailable or
+unparseable, scans always fall back to raw findings. The design rationale
+is in [docs/design.md](docs/design.md).
 
 ## Commands
 
@@ -76,7 +79,7 @@ decisions should be fast and deterministic. The design rationale is in
 | --- | --- |
 | `zwischen init` | Installs/checks tools, creates config, installs pre-push hook (backs up an existing non-Zwischen hook). |
 | `zwischen scan` | Runs enabled scanners, prints a terminal report. |
-| `zwischen scan --changed` | Scans only files changed since the default branch. |
+| `zwischen scan --changed` | Scans only files changed since the default branch, including staged and untracked files. |
 | `zwischen scan --only secrets,sast` | Limits to Gitleaks (`secrets`) and/or Semgrep (`sast`). |
 | `zwischen scan --ai <provider>` | Adds AI prioritization, fix suggestions, false-positive detection. |
 | `zwischen scan --format json` | Machine-readable summary + findings. |
@@ -195,7 +198,7 @@ docs/                         Design write-up, triage example, demo GIF
 ## Development
 
 ```bash
-bundle exec rspec             # 204 examples
+bundle exec rspec             # 212 examples
 ./scripts/test_as_gem.sh      # install and exercise as a real gem
 ```
 

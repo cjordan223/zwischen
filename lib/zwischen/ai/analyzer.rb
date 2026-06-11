@@ -80,9 +80,11 @@ module Zwischen
       end
 
       def enhance_findings(findings, ai_response)
-        # Try to parse JSON from the response
-        # Look for JSON object in the response
-        json_match = ai_response.match(/\{[\s\S]*\}/m)
+        # Models (especially small local ones) often wrap JSON in markdown
+        # fences or prose; strip fences first, then extract the outermost
+        # JSON object.
+        cleaned = ai_response.to_s.gsub(/```(?:json)?/i, "")
+        json_match = cleaned.match(/\{[\s\S]*\}/m)
         return findings unless json_match
 
         ai_analysis = JSON.parse(json_match[0])

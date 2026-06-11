@@ -113,14 +113,18 @@ module Zwischen
 
     def install_hook
       project_root = Dir.pwd
-      git_dir = File.join(project_root, ".git")
 
-      unless File.directory?(git_dir)
+      # File check alone breaks linked worktrees, where .git is a file
+      unless File.exist?(File.join(project_root, ".git"))
         @shell.say("  ⚠️  No .git directory found. Skipping hook installation.", :yellow)
         return false
       end
 
       hook_path = Hooks.hook_path(project_root)
+      default_path = File.expand_path(File.join(project_root, ".git", "hooks", "pre-push"))
+      if File.expand_path(hook_path) != default_path
+        @shell.say("  ↳ Git hooks are redirected (core.hooksPath or worktree); installing to #{hook_path}", :yellow)
+      end
 
       if File.exist?(hook_path)
         if Hooks.zwischen_hook?(hook_path)

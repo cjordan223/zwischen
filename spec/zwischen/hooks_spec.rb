@@ -23,6 +23,38 @@ RSpec.describe Zwischen::Hooks do
     it "points at .git/hooks/pre-push under the project root" do
       expect(described_class.hook_path(project_root)).to eq(hook_path)
     end
+
+    def init_repo(dir)
+      system("git", "init", "-q", dir, exception: true)
+      system("git", "-C", dir, "config", "user.email", "t@t.co", exception: true)
+      system("git", "-C", dir, "config", "user.name", "t", exception: true)
+    end
+
+    it "respects core.hooksPath so the hook lands where git executes it" do
+      init_repo(project_root)
+      system("git", "-C", project_root, "config", "core.hooksPath", ".husky", exception: true)
+
+      resolved = described_class.hook_path(project_root)
+      expect(File.expand_path(resolved)).to end_with("/.husky/pre-push")
+      expect(resolved).not_to include(".git/hooks")
+    end
+
+    it "resolves the shared hooks dir from inside a linked worktree" do
+      init_repo(project_root)
+      File.write(File.join(project_root, "f"), "x")
+      system("git", "-C", project_root, "add", ".", exception: true)
+      system("git", "-C", project_root, "commit", "-qm", "i", exception: true)
+
+      worktree = File.join(Dir.mktmpdir, "wt")
+      system("git", "-C", project_root, "worktree", "add", "-q", worktree, "-b", "wt", exception: true)
+
+      resolved = described_class.hook_path(worktree)
+      expect(resolved).to eq(File.join(File.realpath(project_root), ".git", "hooks", "pre-push"))
+      expect(described_class.install(worktree)).to be true
+      expect(File.executable?(resolved)).to be true
+    ensure
+      system("git", "-C", project_root, "worktree", "remove", "--force", worktree, exception: false) if worktree
+    end
   end
 
   describe ".install" do
