@@ -16,11 +16,11 @@ module Zwischen
       end
 
       def build_command(project_root)
-        [executable_path, "--json", "--config", @config, project_root]
+        [executable_path, "--json", *config_args, project_root]
       end
 
       def build_command_for_files(files, _project_root)
-        [executable_path, "--json", "--config", @config, *files]
+        [executable_path, "--json", *config_args, *files]
       end
 
       def parse_output(output)
@@ -39,7 +39,7 @@ module Zwischen
             severity: severity,
             file: result["path"],
             line: result["start"]&.dig("line"),
-            message: result["message"] || result["check_id"],
+            message: result.dig("extra", "message") || result["message"] || result["check_id"],
             rule_id: result["check_id"],
             code_snippet: result["extra"]&.dig("lines"),
             raw_data: result
@@ -53,6 +53,11 @@ module Zwischen
       end
 
       private
+
+      # Accept a comma-separated list of rulesets ("p/security-audit,p/expressjs")
+      def config_args
+        @config.to_s.split(",").map(&:strip).reject(&:empty?).flat_map { |c| ["--config", c] }
+      end
 
       def map_severity(severity)
         case severity.to_s.downcase

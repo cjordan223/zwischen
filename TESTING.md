@@ -1,257 +1,374 @@
-# Zwischen End-to-End Testing Framework
+# Zwischen End-to-End Testing
 
-## Context
+This guide verifies Zwischen as an installed Ruby gem, not from source. The installed-gem path matters because end users run the generated executable and packaged files.
 
-Zwischen is a lightweight Ruby CLI gem for AI-augmented security scanning. It will be publicly available via RubyGems. This testing framework verifies the complete workflow as an **installed gem** (not from source), ensuring it works for end users.
+Run the tests from a temporary directory outside the repository, such as `/tmp/zwischen-test-*`.
 
-**Codebase Location:** `~/Zwischen`  
-**Test Directory:** Use any temporary directory outside the Zwischen repository (e.g., `/tmp/zwischen-test` or `~/test-zwischen`)
-
-## Setup: Install as Gem
+## Install the Gem Under Test
 
 ```bash
-# 1. Build and install the gem
-cd ~/Zwischen
+cd /path/to/zwischen
 ./scripts/test_as_gem.sh
 
-# 2. Add to PATH (script will show exact path)
 export PATH="$HOME/.local/share/gem/ruby/$(ruby -e 'puts RUBY_VERSION[/\d+\.\d+/]')/bin:$PATH"
 
-# 3. Verify installation
 which zwischen
 zwischen --help
 ```
 
-## Test Framework
+Expected:
 
-Execute these tests in order. For each test, record: **PASS**, **FAIL**, or **SKIP** (with reason).
+- `which zwischen` points at the user gem bin path, not this repository's `bin/zwischen`.
+- `zwischen --help` lists `doctor`, `init`, `scan`, and `uninstall`.
 
-### Test Suite 1: Installation & Setup
+## Test Suite 1: Installation and Init
 
-**Test 1.1: Gem Installation**
-- [ ] `gem list zwischen` shows installed gem
-- [ ] `which zwischen` points to gem bin (not `~/Zwischen/bin`)
-- [ ] `zwischen --help` shows commands: init, scan, uninstall, doctor
+### Test 1.1: Gem Installation
 
-**Test 1.2: Interactive Setup**
 ```bash
-# Create a temporary test directory (outside Zwischen repo)
+gem list zwischen
+gem which zwischen
+zwischen --help
+```
+
+Expected:
+
+- `gem list zwischen` includes the version under test.
+- `gem which zwischen` resolves to the installed gem.
+- Help exits successfully without opening a pager.
+
+### Test 1.2: Init in a Git Repository
+
+```bash
 TEST_DIR=$(mktemp -d -t zwischen-test-XXXXXX)
 cd "$TEST_DIR"
 mkdir test-repo && cd test-repo
 git init
-echo "# Test" > README.md && git add . && git commit -m "Initial"
+git config user.email test@example.com
+git config user.name "Zwischen Test"
+printf "# Test\n" > README.md
+git add README.md
+git commit -m "Initial"
 zwischen init
-# Answer: y (AI), [test-key], y (hook), y (config)
 ```
-- [ ] `.zwischen.yml` created
-- [ ] `~/.zwischen/credentials` created with 0600 permissions
-- [ ] `.git/hooks/pre-push` created, executable, contains marker comment
 
-**Test 1.3: Config Structure**
-- [ ] `.zwischen.yml` contains: `ai.enabled`, `blocking.severity`, `scanners`
-- [ ] Config loads without errors
+Expected:
 
-### Test Suite 2: Pre-Push Hook
+- `.zwischen.yml` exists.
+- `.git/hooks/pre-push` exists and is executable.
+- The hook contains `Zwischen pre-push hook`.
+- `~/.zwischen/bin/gitleaks` exists when auto-install succeeds, or `zwischen init` prints the manual install command when it cannot auto-install.
+- `~/.zwischen/credentials` is created only when `ANTHROPIC_API_KEY` was set before running `zwischen init`.
 
-**Test 2.1: Clean Push (No Issues)**
+### Test 1.3: Config Structure
+
 ```bash
-echo "def hello(): pass" > test.py
-git add . && git commit -m "Add test"
-.git/hooks/pre-push
+ruby -ryaml -e 'p YAML.safe_load(File.read(".zwischen.yml")).keys'
+zwischen doctor
 ```
-- [ ] Hook executes silently (no output)
-- [ ] Exit code: 0
 
-**Test 2.2: Blocking Push (With Issues)**
+Expected:
+
+- Config includes `ai`, `blocking`, `scanners`, and `ignore`.
+- `zwischen doctor` reports Gitleaks status and Semgrep status without crashing.
+
+## Test Suite 2: Pre-Push Hook
+
+### Test 2.1: Clean Push Path
+
 ```bash
-echo "password = 'secret123'" > config.py
-git add . && git commit -m "Add secret"
+printf "def hello():\n    pass\n" > test.py
+git add test.py
+git commit -m "Add clean file"
 .git/hooks/pre-push
+echo $?
 ```
-- [ ] Compact output shows: `🛡️ Zwischen: X issues found`
-- [ ] Shows severity, file:line, message
-- [ ] Shows "Push blocked" message
-- [ ] Exit code: 1
 
-**Test 2.3: Bypass Mechanisms**
-- [ ] `git push --no-verify` bypasses hook
-- [ ] `ZWISCHEN_SKIP=1 git push` bypasses hook
+Expected:
 
-### Test Suite 3: Manual Scan Commands
+- Hook exits `0`.
+- Hook is silent when no changed files or no blocking findings are detected.
 
-**Test 3.1: Standard Scan**
+### Test 2.2: Blocking Finding
+
+```bash
+cat > config.env <<'EOF'
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+EOF
+git add config.env
+git commit -m "Add secret"
+.git/hooks/pre-push
+echo $?
+```
+
+Expected:
+
+- Hook exits `1` when Gitleaks maps the finding to `high` or `critical`.
+- Compact output starts with `Zwischen:` and lists severity, file, line, and message.
+- Output includes the push-blocked guidance.
+
+### Test 2.3: Bypass Mechanisms
+
+Expected:
+
+- `git push --no-verify` bypasses Git hooks.
+- `ZWISCHEN_SKIP=1 .git/hooks/pre-push` exits `0`.
+
+## Test Suite 3: Manual Scan Commands
+
+### Test 3.1: Standard Scan
+
 ```bash
 zwischen scan
+echo $?
 ```
-- [ ] Shows "Scanning..." message
-- [ ] Full report with summary and findings
-- [ ] Exit code reflects findings
 
-**Test 3.2: Pre-Push Mode**
+Expected:
+
+- Prints the scanning banner and full terminal report when findings exist.
+- Exits `1` when findings meet the configured blocking severity.
+- Exits `0` when no blocking findings exist.
+
+### Test 3.2: JSON Output
+
 ```bash
+zwischen scan --format json
+```
+
+Expected:
+
+- Prints valid JSON with `summary` and `findings`.
+- Exit code still reflects configured blocking behavior.
+
+### Test 3.3: Scanner Selection
+
+```bash
+zwischen scan --only secrets
+zwischen scan --only sast
+zwischen scan --only secrets,sast
+```
+
+Expected:
+
+- `secrets` selects Gitleaks.
+- `sast` selects Semgrep.
+- Missing scanners are skipped with a warning outside pre-push mode.
+
+### Test 3.4: Changed Files Filtering
+
+```bash
+cat > changed.env <<'EOF'
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+EOF
+git add changed.env
+git commit -m "Add changed secret"
+
+cat > uncommitted.env <<'EOF'
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+EOF
 zwischen scan --pre-push
 ```
-- [ ] Silent when clean (no "Scanning..." message)
-- [ ] Compact output when issues found
-- [ ] Only shows blocking findings (based on config)
 
-**Test 3.3: Changed Files Filtering**
-```bash
-# Create file with issue, commit
-echo "api_key = 'test'" > changed.py
-git add . && git commit -m "Add changed"
+Expected:
 
-# Create another file with issue, don't commit
-echo "password = 'test'" > unchanged.py
+- Pre-push mode only reports findings from files returned by `GitDiff.changed_files`.
+- Uncommitted files outside that diff are not reported.
 
-zwischen scan --pre-push
-```
-- [ ] Only reports findings from `changed.py`
-- [ ] Filters out `unchanged.py` findings
+## Test Suite 4: Blocking Configuration
 
-### Test Suite 4: Configuration Options
+### Test 4.1: Default Blocking
 
-**Test 4.1: Blocking Severity - High (Default)**
-- [ ] High/Critical findings block push
-- [ ] Medium/Low/Info do NOT block
-
-**Test 4.2: Blocking Severity - Critical Only**
 ```yaml
-# .zwischen.yml
+blocking:
+  severity: high
+```
+
+Expected:
+
+- `critical` and `high` findings block.
+- `medium`, `low`, and `info` findings do not block.
+
+### Test 4.2: Critical Only
+
+```yaml
 blocking:
   severity: critical
 ```
-- [ ] Only Critical blocks push
-- [ ] High does NOT block
 
-**Test 4.3: Blocking Severity - None**
+Expected:
+
+- `critical` findings block.
+- `high` findings do not block.
+
+### Test 4.3: No Blocking
+
 ```yaml
 blocking:
   severity: none
 ```
-- [ ] No findings block push
-- [ ] Findings reported but push proceeds
 
-### Test Suite 5: Uninstall
+Expected:
 
-**Test 5.1: Uninstall Hook**
+- Findings may be reported.
+- Scan exits `0`.
+- Pre-push hook allows the push.
+
+## Test Suite 5: Uninstall
+
+### Test 5.1: Remove Zwischen Hook
+
 ```bash
 zwischen uninstall
-# Answer: y (hook), n (config), n (credentials)
+# Answer y for hook removal.
+# Answer n for config removal unless testing config deletion.
+# Answer n for credentials removal unless testing credentials deletion.
 ```
-- [ ] Hook removed (`.git/hooks/pre-push` deleted)
-- [ ] Config preserved (if answered 'n')
-- [ ] Credentials preserved (if answered 'n')
 
-**Test 5.2: Preserve Custom Hooks**
+Expected:
+
+- Zwischen hook is removed.
+- `.zwischen.yml` is preserved when answering `n`.
+- `~/.zwischen/credentials` is preserved when answering `n`.
+
+### Test 5.2: Preserve Non-Zwischen Hook
+
 ```bash
-# Create custom hook
-echo "#!/bin/bash\necho 'custom'" > .git/hooks/pre-push
+printf "#!/bin/sh\nprintf 'custom hook\\n'\n" > .git/hooks/pre-push
 chmod +x .git/hooks/pre-push
 zwischen uninstall
 ```
-- [ ] Custom hook NOT removed
-- [ ] Uninstall detects it's not a Zwischen hook
 
-### Test Suite 6: Edge Cases
+Expected:
 
-**Test 6.1: No Git Repository**
+- Custom hook remains because it does not contain the Zwischen marker.
+- Uninstall reports that no Zwischen hook was found.
+
+## Test Suite 6: Edge Cases
+
+### Test 6.1: No Git Repository
+
 ```bash
-cd /tmp && mkdir no-git && cd no-git
+NO_GIT_DIR=$(mktemp -d -t zwischen-no-git-XXXXXX)
+cd "$NO_GIT_DIR"
 zwischen init
 ```
-- [ ] Warning about no `.git` directory
-- [ ] Hook installation skipped
-- [ ] Config/credentials still work
 
-**Test 6.2: Existing Pre-Push Hook**
+Expected:
+
+- Config is created.
+- Hook installation is skipped with a warning.
+
+### Test 6.2: Existing Pre-Push Hook
+
 ```bash
-# Create existing hook, then run init
-echo "#!/bin/bash\necho 'existing'" > .git/hooks/pre-push
+cd "$TEST_DIR/test-repo"
+printf "#!/bin/sh\nprintf 'existing hook\\n'\n" > .git/hooks/pre-push
+chmod +x .git/hooks/pre-push
 zwischen init
-# Choose: backup/append/skip
 ```
-- [ ] Backup option creates `.pre-push.zwischen.backup`
-- [ ] Append option adds Zwischen check to existing hook
-- [ ] Skip option preserves original hook
 
-**Test 6.3: Default Branch Detection**
-- [ ] Detects `main` branch correctly
-- [ ] Falls back to `master` if `main` doesn't exist
-- [ ] Changed files detection works for both
+Expected for the current Ruby implementation:
 
-### Test Suite 7: AI Integration
+- Existing hook is copied to `.git/hooks/pre-push.zwischen.backup` or a timestamped variant.
+- New Zwischen hook replaces `.git/hooks/pre-push`.
 
-**Test 7.1: AI-Enabled (If API Key Available)**
+
+### Test 6.3: Default Branch Detection
+
+Expected:
+
+- Remote `origin` HEAD is preferred when available.
+- Local `main` is used before local `master`.
+- `HEAD` is the final fallback.
+
+## Test Suite 7: AI Integration
+
+### Test 7.1: Claude
+
 ```bash
-# With valid API key in ~/.zwischen/credentials
-zwischen scan --pre-push
+ANTHROPIC_API_KEY=... zwischen scan --ai claude
 ```
-- [ ] AI analysis runs (may take time)
-- [ ] False positives marked/filtered
-- [ ] Fix suggestions shown
 
-**Test 7.2: AI Disabled**
+Expected:
+
+- AI analysis runs after scanner findings are aggregated.
+- Findings may include fix suggestions and risk explanations.
+- AI failures fall back to original findings without aborting the scan.
+
+### Test 7.2: Ollama
+
+```bash
+ollama pull llama3
+ollama serve
+zwischen scan --ai ollama
+```
+
+Expected:
+
+- Ollama analysis runs against the configured local URL.
+- If Ollama is not running, scan continues without AI and prints an AI warning outside pre-push mode.
+
+### Test 7.3: AI Disabled for Pre-Push
+
 ```yaml
-# .zwischen.yml
 ai:
-  enabled: false
+  enabled: true
+  pre_push_enabled: false
 ```
-- [ ] Scan completes without AI
-- [ ] All findings shown (no false positive filtering)
 
-## Test Report Template
+Expected:
 
-After completing tests, provide a report:
+- Manual `zwischen scan` can use AI.
+- `zwischen scan --pre-push` does not use AI unless `pre_push_enabled` is `true`.
+
+## Report Template
 
 ```markdown
 # Zwischen Test Report
 
 ## Environment
-- Ruby version: [output of `ruby -v`]
-- Gem location: [output of `gem which zwischen`]
-- Test directory: [path used]
+- Ruby version:
+- Gem location:
+- Test directory:
+- Gitleaks version:
+- Semgrep version:
 
-## Test Results
-
-### Suite 1: Installation & Setup
-- Test 1.1: [PASS/FAIL/SKIP]
-- Test 1.2: [PASS/FAIL/SKIP]
-- Test 1.3: [PASS/FAIL/SKIP]
-
-### Suite 2: Pre-Push Hook
-- Test 2.1: [PASS/FAIL/SKIP]
-- Test 2.2: [PASS/FAIL/SKIP]
-- Test 2.3: [PASS/FAIL/SKIP]
-
-[... continue for all suites ...]
+## Results
+- Test 1.1:
+- Test 1.2:
+- Test 1.3:
+- Test 2.1:
+- Test 2.2:
+- Test 2.3:
+- Test 3.1:
+- Test 3.2:
+- Test 3.3:
+- Test 3.4:
+- Test 4.1:
+- Test 4.2:
+- Test 4.3:
+- Test 5.1:
+- Test 5.2:
+- Test 6.1:
+- Test 6.2:
+- Test 6.3:
+- Test 7.1:
+- Test 7.2:
+- Test 7.3:
 
 ## Failures
-[List any failures with details]
 
-## Issues Found
-[Any bugs, edge cases, or improvements needed]
+## Notes
 
 ## Overall Status
-[PASS/FAIL] - [Summary]
 ```
-
-## Success Criteria
-
-All critical tests (1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 5.1) must PASS for the gem to be considered functional.
 
 ## Cleanup
 
 ```bash
-# Uninstall test gem
 gem uninstall zwischen --user-install
-
-# Clean test directories (adjust path to match your test directory)
-rm -rf /tmp/zwischen-test-*  # If using mktemp
-# Or manually remove your test directory
+rm -rf /tmp/zwischen-test-* /tmp/zwischen-no-git-*
 ```
-
----
-
-**Instructions for LLM:** Execute all test suites in order. For each test, verify the expected behavior and mark PASS/FAIL/SKIP. Provide a complete test report using the template above. Focus on testing as an installed gem (not from source) to simulate real-world usage.

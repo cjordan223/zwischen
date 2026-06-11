@@ -55,7 +55,8 @@ module Zwischen
     def self.get_api_key(provider = "claude")
       # Priority: ENV var > credentials file
       env_var = PROVIDER_ENV_VARS[provider]
-      return ENV[env_var] if env_var && ENV[env_var]
+      env_value = env_var && ENV[env_var]
+      return env_value if env_value && !env_value.strip.empty?
 
       key_name = PROVIDER_KEYS[provider]
       return nil unless key_name
