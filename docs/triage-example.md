@@ -19,9 +19,8 @@ Zwischen Security Scan Results
 Total Findings: 10
 
 By Severity:
-  Critical: 6
+  Critical: 7
   High: 3
-  Medium: 1
 
 📄 .env.production
 ------------------------------------------------------------
@@ -59,38 +58,38 @@ risk, written against the project's context (Express app):
   🔴 HIGH .env.production:3
     Identified a pattern that may indicate AWS credentials [...]
     Rule: aws-access-token
-    💡 Fix: Remove the AWS access key from the environment file and rotate
-       the credentials immediately. Store AWS credentials in a dedicated
-       credentials file with limited permissions or in an IAM role if
-       running on AWS infrastructure. Use environment variables or the
-       AWS SDK's credential provider chain.
-    ⚠️  Risk: Exposed AWS access keys can grant full access to cloud
-       resources, leading to data theft, infrastructure tampering, or
-       accidental public exposure.
+    💡 Fix: Remove the AWS access token from the file and store it in an
+       environment variable or AWS Secrets Manager. Verify the IAM policy
+       attached to the token has the principle of least privilege. Rotate
+       the key immediately and add the file to .gitignore.
+    ⚠️  Risk: An exposed AWS access token can grant attackers full access
+       to the associated AWS resources, leading to data loss,
+       infrastructure tampering, or financial damage.
 
 📄 config/secrets.js
 ------------------------------------------------------------
   🔴 HIGH config/secrets.js:10
     Found a Stripe Access Token [...]
     Rule: stripe-access-token
-    💡 Fix: Remove the Stripe secret from the codebase. Store it in a
-       secure environment variable and use Stripe's official SDK to load
-       it at runtime. Ensure that production secrets are only available
-       in the production environment.
-    ⚠️  Risk: Exposing Stripe secret keys can allow attackers to create
-       charges, refund payments, or access transaction data.
+    💡 Fix: Remove the Stripe test secret key from the source. Store it
+       in an environment variable or a secrets manager. Rotate the key if
+       it has been exposed, and add the file to .gitignore.
+    ⚠️  Risk: Exposing a Stripe secret key can allow attackers to
+       manipulate payment processing, create fraudulent charges, or
+       access sensitive customer financial information.
 
 📄 routes/users.js
 ------------------------------------------------------------
   🔴 CRITICAL routes/users.js:10
     Detected user input used to manually construct a SQL string. [...]
-    💡 Fix: Replace manual SQL string concatenation with parameterized
-       queries. For example, use
-       db.query('SELECT * FROM users WHERE id = ?', [req.params.id]).
-       If you use an ORM like Sequelize, let it handle query construction.
-    ⚠️  Risk: Manually concatenating user input into SQL statements allows
-       attackers to inject malicious SQL, which can read, modify, or
-       delete data in the database.
+    💡 Fix: Replace the manual string concatenation with a parameterized
+       query. For example, if using PostgreSQL with pg, use $1
+       placeholders and pass the values as an array. If you use an ORM
+       (Sequelize, Knex), let it build the query for you. Never
+       interpolate raw user input into SQL strings.
+    ⚠️  Risk: Manual string concatenation of user data into SQL opens the
+       door to SQL injection, which can read, modify, or delete data in
+       the database.
 ```
 
 ## What the AI layer is allowed to do
