@@ -113,6 +113,7 @@ module Zwischen
 
       if findings.empty?
         # In pre-push mode, exit silently (no output)
+        puts "✅ No issues found.".colorize(:green) unless pre_push
         exit 0
       end
 
