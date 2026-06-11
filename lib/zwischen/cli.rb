@@ -75,20 +75,22 @@ module Zwischen
     method_option :only, type: :string, desc: "Only run specific scanners (secrets,sast)"
     method_option :ai, type: :string, desc: "Enable AI analysis (claude)"
     method_option :"api-key", type: :string, desc: "API key for AI provider"
-    method_option :format, type: :string, default: "terminal", desc: "Output format (terminal, json)"
+    method_option :format, type: :string, default: "terminal", desc: "Output format (terminal, json, sarif)"
     method_option :"pre-push", type: :boolean, desc: "Pre-push mode (quiet, compact output)"
+    method_option :changed, type: :boolean, desc: "Only scan files changed since the default branch"
     def scan
       config = Config.load
       project = ProjectDetector.detect
       pre_push = options[:"pre-push"]
+      quiet = pre_push || %w[json sarif].include?(options[:format])
 
-      # Suppress scanning message in pre-push mode (will show only if issues found)
-      unless pre_push
+      # Suppress scanning message in pre-push/machine-readable modes
+      unless quiet
         puts "🔍 Scanning #{project[:primary_type] || 'project'}...\n"
       end
 
       changed_files = nil
-      if pre_push
+      if pre_push || options[:changed]
         changed_files = GitDiff.changed_files
         changed_files = changed_files.select do |path|
           candidate = path
@@ -96,24 +98,31 @@ module Zwischen
           File.file?(candidate)
         end
 
-        exit 0 if changed_files.empty?
+        if changed_files.empty?
+          puts Reporter::Sarif.report({ findings: [] }, project_root: project[:root]) if options[:format] == "sarif"
+          exit 0
+        end
       end
 
       # Run scanners
       orchestrator = Scanner::Orchestrator.new(config: config)
       findings = orchestrator.scan(project[:root], only: options[:only], pre_push: pre_push, files: changed_files)
 
-      # Filter findings to changed files in pre-push mode
+      # Filter findings to changed files in pre-push/--changed mode
       # Note: This is a safety net. Scanners receive the file list and should only scan those,
       # but some scanners (like gitleaks) may return paths in different formats. This ensures
       # we only report findings for files the developer actually changed.
-      if pre_push && changed_files
+      if changed_files
         findings = GitDiff.filter_findings(findings: findings, changed_files: changed_files)
       end
 
       if findings.empty?
         # In pre-push mode, exit silently (no output)
-        puts "✅ No issues found.".colorize(:green) unless pre_push
+        if options[:format] == "sarif"
+          puts Reporter::Sarif.report({ findings: [] }, project_root: project[:root])
+        elsif !quiet
+          puts "✅ No issues found.".colorize(:green)
+        end
         exit 0
       end
 
@@ -138,7 +147,7 @@ module Zwischen
 
       if ai_enabled
         begin
-          unless pre_push
+          unless quiet
             puts "🤖 Analyzing findings with AI (#{provider})...\n"
           end
           
@@ -166,6 +175,11 @@ module Zwischen
           summary: aggregated[:summary],
           findings: aggregated[:findings].map(&:to_h)
         })
+        blocking_severity = config.blocking_severity
+        exit_code = aggregated[:findings].any? { |f| should_block?(f, blocking_severity, ai_enabled) } ? 1 : 0
+        exit exit_code
+      elsif options[:format] == "sarif"
+        puts Reporter::Sarif.report(aggregated, project_root: project[:root])
         blocking_severity = config.blocking_severity
         exit_code = aggregated[:findings].any? { |f| should_block?(f, blocking_severity, ai_enabled) } ? 1 : 0
         exit exit_code

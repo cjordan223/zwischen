@@ -38,8 +38,8 @@ scanners:
   #   config: p/security-audit  # Open ruleset, no login required
   #   # Other options: p/secrets, p/owasp-top-ten, or path to custom ruleset
 
-# Ignored Paths (reserved for scanner filtering; adapters do not currently
-# enforce these globs)
+# Ignored Paths — findings in matching paths are dropped before reporting.
+
 ignore:
   - "**/vendor/**"
   - "**/node_modules/**"

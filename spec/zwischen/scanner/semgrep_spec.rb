@@ -48,6 +48,19 @@ RSpec.describe Zwischen::Scanner::Semgrep do
       expect(finding.message).to eq("rule.id")
     end
 
+    it "prefers the human-readable message from extra.message" do
+      output = {
+        "results" => [{
+          "check_id" => "rule.id",
+          "path" => "a.rb",
+          "extra" => { "message" => "User input flows into SQL", "severity" => "ERROR" }
+        }]
+      }.to_json
+
+      finding = scanner.parse_output(output).first
+      expect(finding.message).to eq("User input flows into SQL")
+    end
+
     it "handles results without extra or start blocks" do
       output = { "results" => [{ "check_id" => "rule.id", "path" => "a.rb" }] }.to_json
 
@@ -135,6 +148,18 @@ RSpec.describe Zwischen::Scanner::Semgrep do
 
         expect(Open3).to receive(:capture3)
           .with("/usr/bin/semgrep", "--json", "--config", "p/ruby", project_root, chdir: project_root)
+          .and_return(["", "", success_status])
+
+        expect(custom.scan(project_root)).to eq([])
+      end
+
+      it "expands a comma-separated config into multiple --config flags" do
+        custom = described_class.new(config: "p/security-audit, p/expressjs")
+        allow(custom).to receive(:executable_path).and_return("/usr/bin/semgrep")
+
+        expect(Open3).to receive(:capture3)
+          .with("/usr/bin/semgrep", "--json", "--config", "p/security-audit",
+                "--config", "p/expressjs", project_root, chdir: project_root)
           .and_return(["", "", success_status])
 
         expect(custom.scan(project_root)).to eq([])
