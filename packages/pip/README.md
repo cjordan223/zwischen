@@ -43,6 +43,8 @@ Not currently supported in this wrapper:
 
 - `zwischen uninstall`
 - `zwischen scan --only ...`
+- `zwischen scan --changed`
+- `zwischen scan --format sarif`
 - Ruby's changed-file filtering for `--pre-push`
 
 ## Behavior

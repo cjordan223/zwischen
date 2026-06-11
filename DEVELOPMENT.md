@@ -20,7 +20,7 @@ bin/zwischen
         -> Scanner::Semgrep
      -> Finding::Aggregator
      -> AI::Analyzer, when enabled
-     -> Reporter::Terminal
+     -> Reporter::Terminal (or Reporter::Sarif for --format sarif)
 ```
 
 `zwischen init` follows a separate path:
@@ -34,7 +34,7 @@ CLI#init
      -> Config.init creates .zwischen.yml
 ```
 
-`zwischen scan --pre-push` uses `GitDiff.changed_files`, passes those files to scanner adapters, filters findings to changed files again as a safety net, and only prints compact output for blocking findings.
+`zwischen scan --pre-push` uses `GitDiff.changed_files`, passes those files to scanner adapters, filters findings to changed files again as a safety net, and only prints compact output for blocking findings. `zwischen scan --changed` applies the same changed-files scoping to a manual scan with full output.
 
 ## Config Contract
 
@@ -90,8 +90,8 @@ Package-wrapper parity changes:
 ## Known Iteration Points
 
 - Ruby `Hooks.handle_existing_hook` has backup/append/skip logic, but `Setup#install_hook` currently backs up and replaces existing non-Zwischen hooks directly.
-- Ruby config exposes `ignore` and `severity.fail_on`, but scanner adapters currently do not enforce ignore globs and blocking uses `blocking.severity`.
-- npm and pip wrappers do not yet match Ruby feature parity. They do not support `uninstall`, `--only`, Ruby's changed-file pre-push filtering, or the Ruby JSON summary shape.
+- Ruby config exposes `severity.fail_on`, but blocking decisions use `blocking.severity`. (`ignore` globs are enforced by the orchestrator.)
+- npm and pip wrappers do not yet match Ruby feature parity. They do not support `uninstall`, `--only`, `--changed`, `--format sarif`, Ruby's changed-file pre-push filtering, or the Ruby JSON summary shape.
 - npm and pip wrappers default AI provider to Ollama, while Ruby defaults to Claude.
 
 ## Verification
@@ -110,12 +110,12 @@ Installed-gem workflow:
 
 Then follow `TESTING.md` from a temporary directory outside this repository.
 
-npm wrapper smoke checks:
+npm wrapper smoke checks (mirrors CI):
 
 ```bash
 cd packages/npm
-npm test
 node bin/zwischen.js --help
+npm pack --dry-run
 ```
 
 pip wrapper smoke checks:
@@ -134,21 +134,23 @@ version tag:
 ```bash
 # bump lib/zwischen/version.rb, packages/npm/package.json,
 # packages/pip/pyproject.toml, and CHANGELOG.md first
-git tag v0.1.0
-git push origin v0.1.0
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
-One-time registry setup (first release only):
+Registry setup (already configured as of v0.1.0; reference for new registries
+or token rotation):
 
-1. **RubyGems** — add a *pending trusted publisher* for the `zwischen` gem at
-   <https://rubygems.org/profile/oidc/pending_trusted_publishers>:
+1. **RubyGems** — trusted publisher on the `zwischen` gem:
    repository `cjordan223/zwischen`, workflow `release.yml`, environment `release`.
-2. **PyPI** — add a *pending trusted publisher* for the `zwischen-cli` project at
-   <https://pypi.org/manage/account/publishing/> with the same repository,
-   workflow, and environment. (The bare `zwischen` name is taken on PyPI by an
-   unrelated package, so the distribution is `zwischen-cli`; the installed
-   command is still `zwischen`.)
-3. **npm** — create an automation token at npmjs.com and save it as the
-   `NPM_TOKEN` repository secret.
-4. **GitHub** — create a `release` environment in the repo settings
-   (Settings → Environments) so the OIDC claims match.
+2. **PyPI** — trusted publisher on the `zwischen-cli` project, same
+   repository, workflow, and environment. (The bare `zwischen` name is taken
+   on PyPI by an unrelated package, so the distribution is `zwischen-cli`;
+   the installed command is still `zwischen`.)
+3. **npm** — granular access token saved as the `NPM_TOKEN` repository
+   secret. Must have read/write on the `zwischen` package and **bypass 2FA**
+   enabled, or CI publishes fail with `EOTP`. When rotating, set the secret
+   via the interactive prompt (`gh secret set NPM_TOKEN`) — never pass the
+   token as a command argument.
+4. **GitHub** — the `release` environment in repo settings, so OIDC claims
+   match the workflows.

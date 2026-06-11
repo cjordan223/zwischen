@@ -11,6 +11,7 @@ ai:
   ollama:
     model: llama3
     url: http://localhost:11434
+    # timeout: 180   # seconds; raise for large local models that load slowly
   
   openai:
     model: gpt-4
@@ -35,11 +36,10 @@ scanners:
   #   enabled: true
   # semgrep:
   #   enabled: true
-  #   config: p/security-audit  # Open ruleset, no login required
+  #   config: p/security-audit,p/expressjs  # Comma-separated open rulesets, no login required
   #   # Other options: p/secrets, p/owasp-top-ten, or path to custom ruleset
 
 # Ignored Paths — findings in matching paths are dropped before reporting.
-
 ignore:
   - "**/vendor/**"
   - "**/node_modules/**"

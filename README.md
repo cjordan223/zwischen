@@ -195,7 +195,7 @@ docs/                         Design write-up, triage example, demo GIF
 ## Development
 
 ```bash
-bundle exec rspec             # 196+ examples
+bundle exec rspec             # 204 examples
 ./scripts/test_as_gem.sh      # install and exercise as a real gem
 ```
 

@@ -177,6 +177,30 @@ Expected:
 - Pre-push mode only reports findings from files returned by `GitDiff.changed_files`.
 - Uncommitted files outside that diff are not reported.
 
+### Test 3.5: SARIF Output
+
+```bash
+zwischen scan --format sarif
+```
+
+Expected:
+
+- Prints valid SARIF 2.1.0 JSON (`version`, `runs[0].tool.driver.name == "Zwischen"`).
+- File URIs are project-relative.
+- Exit code still reflects configured blocking behavior.
+- With no findings, prints an empty SARIF document and exits `0`.
+
+### Test 3.6: Changed-Only Manual Scan
+
+```bash
+zwischen scan --changed
+```
+
+Expected:
+
+- Only files changed since the default branch are scanned and reported.
+- Exits `0` silently when there are no changed files.
+
 ## Test Suite 4: Blocking Configuration
 
 ### Test 4.1: Default Blocking
@@ -347,6 +371,8 @@ Expected:
 - Test 3.2:
 - Test 3.3:
 - Test 3.4:
+- Test 3.5:
+- Test 3.6:
 - Test 4.1:
 - Test 4.2:
 - Test 4.3:
