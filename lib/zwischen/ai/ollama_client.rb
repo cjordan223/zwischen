@@ -18,6 +18,9 @@ module Zwischen
         @client = Faraday.new(url: base_url) do |conn|
           conn.request :json
           conn.response :json, content_type: /\bjson$/
+          # Local models can take a while to load and generate; default 60s
+          # is too tight for larger models.
+          conn.options.timeout = (@config["timeout"] || 180).to_i
           conn.adapter Faraday.default_adapter
         end
       end
